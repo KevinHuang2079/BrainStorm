@@ -6,44 +6,26 @@ services:
     plan: free
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
+    ignoredPaths:
+      - frontend/**
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
-      
-      # Database
       - key: MONGO_URI
         sync: false
-        # Set in Render dashboard: mongodb+srv://username:password@cluster.mongodb.net/dbname
-      
-      # Authentication
       - key: JWT_SECRET
         sync: false
-        # Set in Render dashboard: generate a long random string (e.g., 64+ characters)
-      
-      # CORS Configuration
       - key: CLIENT_URL
         sync: false
-        # Set in Render dashboard: https://your-frontend-domain.com
-      
-      # Cloudflare R2 Storage
       - key: ACCOUNT_ID
         sync: false
-        # Set in Render dashboard: your Cloudflare account ID
-      
       - key: CF_ACCESS_KEY_ID
         sync: false
-        # Set in Render dashboard: Cloudflare R2 access key ID
-      
       - key: CF_SECRET_ACCESS_KEY
         sync: false
-        # Set in Render dashboard: Cloudflare R2 secret access key
-      
       - key: ENDPOINT
         sync: false
-        # Set in Render dashboard: https://<account-id>.r2.cloudflarestorage.com
-      
       - key: CF_ACCOUNT_API_TOKEN
         sync: false
-        # Set in Render dashboard: Cloudflare API token 
