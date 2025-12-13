@@ -1,0 +1,515 @@
+.player-area {
+    display: flex;
+    gap: 2%;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 2%;
+    background-color: #0a0a0a;
+    border-radius: 4px;
+    min-height: 100%;
+    position: relative;
+    overflow: visible;
+}
+
+.right-section {
+    display: flex;
+    gap: 1.5%;
+    height: 90%;
+    margin-left: auto;
+}
+
+.hover-menu {
+    position: absolute;
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    list-style: none;
+    padding: 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    z-index: 9999; 
+    min-width: 160px;
+}
+
+.hover-menu-top {
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 10px;
+}
+
+.hover-menu-bottom {
+    top: 100%;
+    left: 0;
+    margin-top: 10px;
+}
+
+.hover-menu-left {
+    right: 100%;
+    top: 0;
+    margin-right: 0px; 
+}
+
+.hover-menu-right {
+    left: 100%;
+    top: 0;
+    margin-left: 0px;  
+}
+
+.hover-menu li {
+    padding: 0;
+}
+
+.hover-menu-btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+
+.hover-menu-btn:hover {
+    background-color: #2a2a2a;
+}
+
+.hover-menu-btn.scoop-btn {
+    color: #ff6b6b;
+    border-top: 1px solid #444;
+}
+
+.hover-menu-btn.scoop-btn:hover {
+    background-color: #3a2a2a;
+}
+
+.hover-menu-group {
+    padding: 8px 12px;
+    border-bottom: 1px solid #333;
+}
+
+.hover-menu-group:last-child {
+    border-bottom: none;
+}
+
+.hover-menu-group span {
+    display: block;
+    font-size: 0.85em;
+    color: #999;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.hover-menu-group-content {
+    display: flex;
+    gap: 4px;
+}
+
+.hover-menu-group-btn {
+    flex: 1;
+    padding: 4px 6px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 3px;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s;
+}
+
+.hover-menu-group-btn:hover {
+    background-color: #3a3a3a;
+    border-color: #666;
+}
+
+.hover-menu-item-wrapper {
+    position: relative;
+}
+
+.draw-zone-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid #333;
+}
+
+.draw-zone-item:last-child {
+    border-bottom: none;
+}
+
+.draw-zone-click {
+    flex: 1;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 0.9em;
+    padding-right: 8px;
+}
+
+.draw-zone-click:hover {
+    color: #fff;
+}
+
+.draw-zone-counter {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    margin-left: auto;
+}
+
+.adjustable-counter {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.counter-controls {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+}
+
+.counter-btn {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 2px;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 0.75em;
+    font-weight: bold;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.counter-btn:hover {
+    background-color: #3a3a3a;
+    border-color: #666;
+}
+
+.counter-value {
+    min-width: 24px;
+    text-align: center;
+    color: #ccc;
+    font-weight: bold;
+    font-size: 0.85em;
+}
+
+.library-wrapper {
+    position: relative;
+    flex: 1.3;
+    height: 100%;
+    min-width: 100px;
+}
+
+.library-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    cursor: pointer;
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.library-visual {
+    width: 100%;
+    height: 100%;
+    border: 2px solid #444;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #1a1a1a;
+    transition: border-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    color: #666;
+}
+
+.library-section:hover .library-visual {
+    border-color: #666;
+}
+
+.card-back-placeholder {
+    font-size: 3em;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.library-visual img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.library-card-count {
+    font-size: 0.8em;
+    font-weight: bold;
+    color: #fff;
+    background-color: rgba(26, 26, 26, 0.9);
+    padding: 2% 4%;
+    border-radius: 3px;
+    min-width: auto;
+    text-align: center;
+    position: absolute;
+    bottom: 4%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+}
+
+.zones-wrapper {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    min-width: 100px;
+}
+
+.zones-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+    border: 2px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    position: relative;
+}
+
+.zones-section:hover {
+    border-color: #666;
+}
+
+.zones-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.zones-text {
+    font-size: 1em;
+    color: #999;
+    margin: 0;
+    font-weight: 600;
+}
+
+.life-total-wrapper {
+    position: relative;
+    flex: 1.5;
+    height: 100%;
+    min-width: 120px;
+}
+
+.life-total-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+    border: 2px solid #444;
+    border-radius: 4px;
+    padding: 8px;
+    gap: 8px;
+}
+
+.life-total-player {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+}
+
+.life-btn {
+    width: 32px;
+    height: 32px;
+    background-color: #2a2a2a;
+    border: 2px solid #444;
+    border-radius: 4px;
+    color: #ccc;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.life-btn:hover {
+    background-color: #3a3a3a;
+    border-color: #666;
+}
+
+.life-btn:active {
+    transform: scale(0.95);
+}
+
+.life-total-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+.life-total-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #fff;
+    line-height: 1;
+}
+
+.life-total-label {
+    font-size: 0.7em;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+.life-total-opponents {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    border-top: 1px solid #333;
+    padding-top: 8px;
+}
+
+.opponent-life {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    background-color: #0a0a0a;
+    border-radius: 3px;
+    border: 1px solid #2a2a2a;
+}
+
+.opponent-name {
+    font-size: 0.8em;
+    color: #999;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.opponent-life-value {
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #ccc;
+    margin-left: 8px;
+}
+
+.change-deck-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #1a1a1a;
+    border: 2px solid #444;
+    border-radius: 8px;
+    padding: 3%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    color: #fff;
+    font-size: 1.5em;
+}
+
+.deck-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 2%;
+    margin-bottom: 3%;
+}
+
+.deck-card {
+    background-color: #2a2a2a;
+    border: 2px solid #444;
+    border-radius: 6px;
+    padding: 3%;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.deck-card:hover {
+    border-color: #666;
+    background-color: #3a3a3a;
+    transform: translateY(-2px);
+}
+
+.deck-card h3 {
+    margin: 0 0 2% 0;
+    color: #fff;
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.deck-card p {
+    margin: 0;
+    color: #999;
+    font-size: 0.9em;
+}
+
+.modal-close-btn {
+    width: 100%;
+    padding: 2%;
+    background-color: #333;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s;
+}
+
+.modal-close-btn:hover {
+    background-color: #444;
+}

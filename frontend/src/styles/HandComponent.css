@@ -1,0 +1,85 @@
+.hand-wrapper {
+    position: relative;
+    width: 75%;
+    height: 90%;
+    z-index: 1;
+}
+
+.hand-section {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    overflow: visible;
+}
+
+.hand-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 150px;
+    pointer-events: none;
+}
+
+.hand-count-display {
+    position: absolute;
+    top: -25px;
+    left: -10px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #64b5f6;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.hand-card {
+    position: absolute;
+    height: 150px;
+    width: auto;
+    z-index: 1;
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+    transform-origin: center bottom;
+    pointer-events: auto;
+}
+
+.hand-card:hover {
+    transform: translateX(-50%) translateY(-20px) scale(1.1);
+    z-index: 5;
+}
+
+.hand-card-image {
+    height: 100%;
+    width: auto;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.hand-card:hover .hand-card-image {
+    box-shadow: 0 4px 16px rgba(100, 181, 246, 0.4);
+}
+
+.hand-text {
+    font-size: 0.9em;
+    color: #999;
+    margin: 0;
+}
+
+.hand-empty-text {
+    font-size: 0.9em;
+    color: #666;
+    margin: 0;
+}
+
+.hand-card-wrapper {
+    position: absolute;
+    height: 150px;
+    width: 107.64px;
+    pointer-events: auto;
+}

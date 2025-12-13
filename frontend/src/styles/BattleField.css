@@ -1,0 +1,412 @@
+.battlefield-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.four-player-layout .shared-battlefield-area {
+    flex: 1;
+    min-height: 0;
+    border-bottom: 2px solid #444;
+    background: #1a1a1a;
+}
+
+.four-player-layout .personal-battlefield-area {
+    flex: 1;
+    min-height: 0;
+}
+
+.two-player-layout .opponent-battlefield-area {
+    flex: 1;
+    min-height: 0;
+    border-bottom: 2px solid #444;
+    background: #1a1a1a;
+}
+
+.two-player-layout .personal-battlefield-area {
+    flex: 1;
+    min-height: 0;
+}
+
+.quadrant-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 100%;
+    width: 100%;
+    gap: 2px;
+    background: #333;
+}
+
+.quadrant {
+    background: #2a2a2a;
+    position: relative;
+    padding: 12px;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.quadrant-cards {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.quadrant-1 { grid-area: 1 / 1 / 2 / 2; }
+.quadrant-2 { grid-area: 1 / 2 / 2 / 3; }
+.quadrant-3 { grid-area: 2 / 1 / 3 / 2; }
+.quadrant-4 { grid-area: 2 / 2 / 3 / 3; }
+
+.quadrant-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.opponent-battlefield-area {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.opponent-board {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.opponent-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.3);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.personal-battlefield-area {
+    background: #222;
+    position: relative;
+    border-top: .5px solid #4a9eff;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+    min-height: 0; 
+}
+
+.personal-battlefield-cards {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; 
+}
+
+.personal-battlefield-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: transparent;
+    border: none;
+    color: rgba(74, 158, 255, 0.3);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.battlefield-grid {
+    border: 1px solid #444;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.draggable-card-wrapper {
+    pointer-events: auto;
+}
+
+.battlefield-card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.battlefield-card:hover {
+    transform: scale(1.05);
+    z-index: 10 !important;
+}
+
+.battlefield-card-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    border: 2px solid #444;
+    pointer-events: none;
+    user-select: none;
+    display: block;
+    object-fit: cover;
+}
+
+.opponent-card-wrapper,
+.quadrant-card-wrapper {
+    width: 8%;
+    min-width: 40px;
+    max-width: 100px;
+    aspect-ratio: 5/7;
+}
+
+.opponent-card-wrapper .battlefield-card,
+.quadrant-card-wrapper .battlefield-card {
+    width: 100%;
+    height: 100%;
+}
+
+.opponent-card-wrapper .battlefield-card-image,
+.quadrant-card-wrapper .battlefield-card-image {
+    width: 100%;
+    height: 100%;
+}
+
+.clone-indicator {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(147, 51, 234, 0.9);
+    color: white;
+    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.counters-container {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    pointer-events: auto;
+    z-index: 1;
+}
+
+.card-counter-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-counter {
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.card-counter:hover {
+    background: rgba(34, 197, 94, 0.9);
+    transform: scale(1.15);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.remove-counter-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: rgba(220, 38, 38, 0.95);
+    color: white;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    transition: all 0.15s ease;
+}
+
+.remove-counter-btn:hover {
+    background: rgba(185, 28, 28, 1);
+    transform: scale(1.1);
+}
+
+.card-counter-wrapper:hover .remove-counter-btn {
+    display: flex;
+}
+
+@media (max-width: 1200px) {
+    .opponent-card-wrapper,
+    .quadrant-card-wrapper {
+        width: 7%;
+        min-width: 35px;
+        max-width: 85px;
+    }
+}
+
+@media (max-width: 768px) {
+    .opponent-card-wrapper,
+    .quadrant-card-wrapper {
+        width: 10%;
+        min-width: 30px;
+        max-width: 70px;
+    }
+    
+    .quadrant {
+        padding: 8px;
+    }
+
+    .personal-battlefield-label,
+    .opponent-label,
+    .quadrant-label {
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+
+    .clone-indicator {
+        width: 16px;
+        height: 16px;
+    }
+
+    .card-counter {
+        width: 14px;
+        height: 14px;
+        font-size: 8px;
+    }
+
+    .remove-counter-btn {
+        width: 12px;
+        height: 12px;
+        font-size: 10px;
+        top: -5px;
+        right: -5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .opponent-card-wrapper,
+    .quadrant-card-wrapper {
+        width: 12%;
+        min-width: 25px;
+        max-width: 60px;
+    }
+    
+    .quadrant {
+        padding: 4px;
+    }
+
+    .clone-indicator {
+        width: 14px;
+        height: 14px;
+    }
+
+    .card-counter {
+        width: 12px;
+        height: 12px;
+        font-size: 7px;
+    }
+
+    .remove-counter-btn {
+        width: 10px;
+        height: 10px;
+        font-size: 9px;
+        top: -4px;
+        right: -4px;
+    }
+}
+
+.battlefield-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    color: #fff;
+    font-size: 18px;
+}
+
+.draggable-card-wrapper.tapped,
+.static-card-wrapper.tapped {
+    transform: rotate(90deg);
+}
+
+.draggable-card-wrapper.tapped .battlefield-card-image,
+.static-card-wrapper.tapped .battlefield-card-image {
+    transform: none;
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-4px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(4px);
+    }
+}
+
+.draggable-card-wrapper.shaking,
+.static-card-wrapper.shaking {
+    animation: shake 0.2s ease-in-out;
+}
+
+.draggable-card-wrapper.tapped.shaking,
+.static-card-wrapper.tapped.shaking {
+    animation: shake 0.2s ease-in-out;
+    transform: rotate(90deg);
+}

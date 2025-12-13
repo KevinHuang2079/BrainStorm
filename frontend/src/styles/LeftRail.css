@@ -1,0 +1,114 @@
+.left-rail {
+    width: 50px;
+    background-color: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.left-rail-content {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    width: 100%;
+    align-items: center;
+}
+
+.left-rail-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background-color: #16213e;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.left-rail-button:hover {
+    background-color: #0f3460;
+    transform: scale(1.1);
+}
+
+.button-label {
+    position: absolute;
+    left: 55px;
+    background-color: #0f3460;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity 0s, transform 0.2s ease;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.left-rail-button:hover .button-label,
+.leave-game-button:hover .button-label {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.dice-button:hover {
+    background-color: #533483;
+}
+
+.dice-button:hover .button-label {
+    background-color: #533483;
+}
+
+.insert-card-button:hover {
+    background-color: #16537e;
+}
+
+.insert-card-button:hover .button-label {
+    background-color: #16537e;
+}
+
+.untap-all-button:hover {
+    background-color: #4a7c59;
+}
+
+.untap-all-button:hover .button-label {
+    background-color: #4a7c59;
+}
+
+.leave-game-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background-color: #c1121f;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-top: auto;
+    position: relative;
+}
+
+.leave-game-button:hover {
+    background-color: #9a0007;
+    transform: scale(1.1);
+}
+
+.leave-game-button:hover .button-label {
+    background-color: #9a0007;
+}
+
+.left-rail-button-wrapper {
+    position: relative;
+    width: 100%;
+}

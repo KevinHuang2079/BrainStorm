@@ -1,0 +1,191 @@
+.lightning-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.auth-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+
+  width: 80%;
+  margin: 20px auto;
+
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 2.5rem;
+  letter-spacing: 2px;
+}
+
+
+/* Auth Container */
+.Auth-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Forms */
+.Login-form,
+.Register-form {
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: none;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* Input Fields */
+.Login-form input,
+.Register-form input {
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 15px;
+  color: #e0e0e0;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.Login-form input:-webkit-autofill,
+.Register-form input:-webkit-autofill,
+.Login-form input:-webkit-autofill:hover,
+.Register-form input:-webkit-autofill:hover,
+.Login-form input:-webkit-autofill:focus,
+.Register-form input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  -webkit-text-fill-color: #e0e0e0;
+  caret-color: #e0e0e0; 
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.Login-form input:focus,
+.Register-form input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.Login-form input::placeholder,
+.Register-form input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Submit Buttons */
+.Login-form button[type="submit"],
+.Register-form button[type="submit"] {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  color: #f0f0f0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.Login-form button[type="submit"]:hover,
+.Register-form button[type="submit"]:hover {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.Login-form button[type="submit"]:active,
+.Register-form button[type="submit"]:active {
+  background: transparent;
+}
+
+/* Toggle Text inside forms */
+.Login-form span,
+.Register-form span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 15px;
+  text-align: center;
+  margin-top: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Error Messages */
+.error-message {
+  color: #ff9999;
+  font-size: 14px;
+  min-height: 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  text-align: center;
+  padding: 8px;
+  background: transparent;
+  border-radius: 6px;
+  border-left: 4px solid rgba(255, 100, 100, 0.5);
+}
+
+.error-message.visible {
+  opacity: 1;
+}
+
+/* Auth toggle text container */
+.auth-toggle-text {
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Toggle Text inside forms */
+.Login-form span,
+.Register-form span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 15px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Auth Toggle Button - Inline text styling */
+.auth-button {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  border: none;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(255, 255, 255, 0.5);
+}
+
+.auth-button:hover {
+  color: #ffffff;
+  text-decoration-color: rgba(255, 255, 255, 0.9);
+}
+
+.auth-button:active {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .Login-form,
+  .Register-form {
+    padding: 30px 24px;
+  }
+
+  .Auth-container {
+    padding: 16px;
+  }
+}

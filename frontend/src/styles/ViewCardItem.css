@@ -1,0 +1,32 @@
+.view-card-container {
+  position: relative;
+  display: block;
+  pointer-events: auto;
+}
+
+.view-card-preview {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.view-card-preview-image {
+  width: 300px;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

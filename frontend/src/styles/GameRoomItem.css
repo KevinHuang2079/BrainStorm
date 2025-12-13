@@ -1,0 +1,285 @@
+/* GameRoomItem.css */
+
+.GameRoomItem-container {
+  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+  border: 2px solid #333;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.GameRoomItem-container:hover {
+  border-color: #444;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8),
+              0 0 16px rgba(255, 255, 255, 0.1),
+              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.GameRoomItem-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.game-info {
+  flex: 1;
+}
+
+.game-info h3 {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8),
+               0 0 16px rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.5px;
+}
+
+.game-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.status-waiting {
+  background: linear-gradient(145deg, #333, #1a1a1a);
+  border: 1px solid #444;
+  color: #aaa;
+}
+
+.status-active {
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border: 1px solid #555;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
+               0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.status-full {
+  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+  border: 1px solid #333;
+  color: #666;
+}
+
+.btn-delete {
+  background: transparent;
+  border: 2px solid #333;
+  color: #666;
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  line-height: 1;
+  padding: 0;
+}
+
+.btn-delete:hover {
+  border-color: #666;
+  color: #fff;
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6),
+              0 0 12px rgba(255, 255, 255, 0.2);
+}
+
+.GameRoomItem-details {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid #222;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.detail-row:not(:last-child) {
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.detail-row .label {
+  color: #888;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-row .value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
+               0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+.GameRoomItem-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  min-height: 32px;
+}
+
+.player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.host-badge {
+  padding: 2px 6px;
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #ccc;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
+               0 0 6px rgba(255, 255, 255, 0.2);
+}
+
+.GameRoomItem-actions {
+  margin-top: 16px;
+}
+
+.btn-full {
+  width: 100%;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.btn-primary.btn-full {
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border: 2px solid #444;
+  color: #fff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.btn-primary.btn-full:hover {
+  background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+  border-color: #666;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7),
+              0 0 16px rgba(255, 255, 255, 0.2),
+              0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
+               0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+.btn-disabled.btn-full {
+  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+  border: 2px solid #222;
+  color: #555;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-disabled.btn-full:hover {
+  transform: none;
+}
+
+/* Delete Confirmation Modal */
+.room-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.room-modal-content {
+  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+  border: 2px solid #333;
+  border-radius: 12px;
+  padding: 32px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9),
+              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.room-modal-content h3 {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5),
+               0 0 20px rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.5px;
+}
+
+.room-modal-content p {
+  color: #aaa;
+  font-size: 16px;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.btn-danger {
+  flex: 1;
+  padding: 12px 24px;
+  background: linear-gradient(145deg, #2a1a1a, #1a0d0d);
+  border: 2px solid #441111;
+  border-radius: 8px;
+  color: #ff6666;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
+               0 0 8px rgba(255, 102, 102, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.btn-danger:hover {
+  background: linear-gradient(145deg, #3a2a2a, #2a1a1a);
+  border-color: #661111;
+  color: #ff8888;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6),
+              0 0 16px rgba(255, 102, 102, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
+               0 0 12px rgba(255, 102, 102, 0.5);
+}
