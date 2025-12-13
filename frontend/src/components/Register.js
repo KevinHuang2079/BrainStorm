@@ -1,6 +1,5 @@
 import { useState, useContext } from 'react';
 import {AuthContext} from '../contexts/auth';
-import { useNavigate } from 'react-router-dom';
 
 const Register = ({ChangeLogin, setIsLogin}) => {
     const [email, setEmail] = useState('');
@@ -11,7 +10,6 @@ const Register = ({ChangeLogin, setIsLogin}) => {
     const [passwordError, setPasswordError] = useState('');
 
     const {register} = useContext(AuthContext);
-    const navigate = useNavigate();
 
     const validatePassword = (pwd) => {
         if (pwd.length === 0) {

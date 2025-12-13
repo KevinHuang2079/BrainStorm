@@ -1,18 +1,19 @@
 import { useState, useMemo } from 'react';
-import { useCardActions } from '../contexts/cardActions';
 import ViewCardItem from './ViewCardItem';
 import CardActionsMenu from './CardActionsMenu';
 import '../styles/ZoneViewingModal.css';
 
 const ZoneViewingModal = ({ zoneName, onClose, playerStates, userId }) => {
-  const cardActions = useCardActions();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedCard, setSelectedCard] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
   const zoneKey = zoneName.toLowerCase().replace(/\s+/g, '');
-  const cards = playerStates[userId]?.[zoneKey] || [];
+  
+  const cards = useMemo(() => {
+    return playerStates[userId]?.[zoneKey] || [];
+  }, [playerStates, userId, zoneKey]);
 
   const cardTypes = useMemo(() => {
     const types = new Set();

@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { deckAPI } from '../services/api';
 import {AuthContext} from '../contexts/auth';
 import DeckItem from './DeckItem';
@@ -13,22 +13,18 @@ const DeckList = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  useEffect(() => {
-    loadDecks();
-  }, []);
-
-//   useEffect(() => {
-//     console.log('decks', decks);
-//   });
-
-  const loadDecks = async () => {
+  const loadDecks = useCallback(async () => {
     try {
       const fetchedDecks = await deckAPI.getMyDecks({ owner: user._id });
       setDecks(fetchedDecks);
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [user._id]);
+
+  useEffect(() => {
+    loadDecks();
+  }, [loadDecks]);
 
   const handleDeckClick = async (deck) => {
     try {

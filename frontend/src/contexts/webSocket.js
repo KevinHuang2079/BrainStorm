@@ -21,7 +21,6 @@ export const WebSocketProvider = ({ children }) => {
             return;
         }
 
-        // Create socket connection
         const newSocket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5002', {
             auth: {
                 token: token
@@ -32,7 +31,6 @@ export const WebSocketProvider = ({ children }) => {
             reconnectionAttempts: 5
         });
 
-        // Connection event handlers
         newSocket.on('connect', () => {
             console.log('WebSocket connected:', newSocket.id);
             setIsConnected(true);
@@ -57,10 +55,10 @@ export const WebSocketProvider = ({ children }) => {
 
         setSocket(newSocket);
 
-        // Cleanup on unmount
         return () => {
             newSocket.disconnect();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token]);
 
     return (

@@ -73,7 +73,7 @@ const HandComponent = ({ hand }) => {
                 bottom: '0'
             }));
         }
-    }, [hand.length, containerWidth]);
+    }, [hand, containerWidth]); 
 
     return (
         <div className='hand-wrapper'>

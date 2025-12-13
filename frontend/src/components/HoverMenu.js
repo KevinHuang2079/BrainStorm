@@ -47,16 +47,14 @@ export const HoverMenu = ({ isOpen, onClose, children, position = 'top' }) => {
             if (!menu || !parent) return;
             
             const menuRect = menu.getBoundingClientRect();
-            const parentRect = parent.getBoundingClientRect();
             const viewportHeight = window.innerHeight;
             const viewportWidth = window.innerWidth;
             
-            const padding = 8; // Minimum distance from viewport edge
+            const padding = 8;
             let newPosition = position;
             let offsetX = 0;
             let offsetY = 0;
 
-            // Check vertical positioning
             if (position === 'top' || position === 'bottom') {
                 if (position === 'top' && menuRect.top < padding) {
                     newPosition = 'bottom';
@@ -64,7 +62,6 @@ export const HoverMenu = ({ isOpen, onClose, children, position = 'top' }) => {
                     newPosition = 'top';
                 }
 
-                // Check horizontal overflow
                 if (menuRect.left < padding) {
                     offsetX = padding - menuRect.left;
                 } else if (menuRect.right > viewportWidth - padding) {
@@ -72,7 +69,6 @@ export const HoverMenu = ({ isOpen, onClose, children, position = 'top' }) => {
                 }
             }
 
-            // Check horizontal positioning
             if (position === 'left' || position === 'right') {
                 if (position === 'left' && menuRect.left < padding) {
                     newPosition = 'right';
@@ -80,7 +76,6 @@ export const HoverMenu = ({ isOpen, onClose, children, position = 'top' }) => {
                     newPosition = 'left';
                 }
 
-                // Check vertical overflow
                 if (menuRect.top < padding) {
                     offsetY = padding - menuRect.top;
                 } else if (menuRect.bottom > viewportHeight - padding) {
@@ -93,9 +88,8 @@ export const HoverMenu = ({ isOpen, onClose, children, position = 'top' }) => {
             setIsPositioned(true);
         };
 
-        // Use requestAnimationFrame to ensure DOM has updated
         requestAnimationFrame(adjustMenuPosition);
-    }, [isOpen, position]);
+    }, [isOpen, position, menuRef]);
 
     const handleMouseLeave = () => {
         closeTimeoutRef.current = setTimeout(() => {

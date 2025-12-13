@@ -1,12 +1,12 @@
-# =========================
-# Node modules
-# =========================
+# ========================= 
+# Node modules 
+# ========================= 
 node_modules/
 **/node_modules/
 
-# =========================
-# Logs
-# =========================
+# ========================= 
+# Logs 
+# ========================= 
 logs/
 *.log
 npm-debug.log*
@@ -15,9 +15,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# =========================
-# React / Frontend build / caches
-# =========================
+# ========================= 
+# React / Frontend build / caches 
+# ========================= 
 frontend/build/
 frontend/.cache/
 frontend/.next/
@@ -25,9 +25,9 @@ frontend/.parcel-cache/
 frontend/.vite/
 frontend/dist/
 
-# =========================
-# Backend build / caches
-# =========================
+# ========================= 
+# Backend build / caches 
+# ========================= 
 backend/dist/
 backend/.cache/
 backend/.parcel-cache/
@@ -36,9 +36,9 @@ backend/.vite/
 # MongoDB memory server cache
 backend/node_modules/.cache/mongodb-memory-server/
 
-# =========================
-# Environment / secrets
-# =========================
+# ========================= 
+# Environment / secrets 
+# ========================= 
 .env
 .env.local
 .env.*.local
@@ -46,49 +46,50 @@ backend/node_modules/.cache/mongodb-memory-server/
 .env.test
 .env.development
 
-# =========================
-# OS files
-# =========================
+# ========================= 
+# OS files 
+# ========================= 
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
 
-# =========================
-# IDE/editor files
-# =========================
+# ========================= 
+# IDE/editor files 
+# ========================= 
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
 *.code-workspace
 
-# =========================
-# Misc temporary files
-# =========================
+# ========================= 
+# Misc temporary files 
+# ========================= 
 *.bak
 *.tmp
-*.swp
 *.old
 *.orig
 *~
 
-# =========================
-# Coverage / test output
-# =========================
+# ========================= 
+# Coverage / test output 
+# ========================= 
 coverage/
 *.lcov
 .nyc_output/
 
-# =========================
-# CI/CD artifacts
-# =========================
-*.log
+# ========================= 
+# CI/CD artifacts 
+# ========================= 
 *.cache
 build/
 dist/
-Notes.txt
 
+# ========================= 
+# Project specific 
+# ========================= 
+Notes.txt
 package-lock.json
 yarn.lock
 pnpm-lock.yaml

@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useRef } from 'react';
+import { useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { AuthContext } from '../contexts/auth';
 import { useCardActions } from '../contexts/cardActions';
 import ViewCardItem from './ViewCardItem';
@@ -292,7 +292,10 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
     const playerCount = game?.players?.length || 1;
 
     const currentUserId = user._id;
-    const myBattlefield = playerStates[user._id]?.battlefield || [];
+    const myBattlefield = useMemo(
+        () => playerStates[user._id]?.battlefield || [],
+        [playerStates, user._id]
+    );
 
     const [selectedCard, setSelectedCard] = useState(null);
     const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });

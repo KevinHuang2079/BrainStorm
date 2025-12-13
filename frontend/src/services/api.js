@@ -1,5 +1,4 @@
 import axios from 'axios';
-import DeckList from '../components/DeckList';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5002/api';
 console.log('Final API_BASE_URL:', API_BASE_URL);
