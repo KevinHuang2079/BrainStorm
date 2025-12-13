@@ -1,1 +1,6 @@
-/*    /index.html   200
+# API proxy to Render backend
+/api/*  https://brainstorm-backend-6h2g.onrender.com 200
+
+
+# SPA fallback
+/*  /index.html  200
