@@ -2,16 +2,26 @@ const express = require('express');
 const router = express.Router();
 const Deck = require('../models/Deck');
 const User = require('../models/User');
-const Card = require('../models/Card');
 const auth = require('../middleware/auth');
 const scryfallService = require('../services/scryfallService');
+const cardCache = require('../services/r2cardCache');
+const { uploadCardToR2, cardExistsInR2 } = require('../services/r2client');
 
 const calculateDeckPrice = async (deckId) => {
-    const deck = await Deck.findById(deckId).populate('cards');
-    if (!deck) return 0;
+    const deck = await Deck.findById(deckId);
+    if (!deck || !deck.cards || deck.cards.length === 0) {
+        if (deck) {
+            deck.priceValue = 0;
+            await deck.save();
+        }
+        return 0;
+    }
     
-    const totalPrice = deck.cards.reduce((total, card) => {
-        return total + (card.priceValue || 0);
+    const cardMap = await cardCache.batchFetch(deck.cards);
+    
+    const totalPrice = deck.cards.reduce((total, scryfallId) => {
+        const card = cardMap[scryfallId];
+        return total + (card?.priceValue || 0);
     }, 0);
     
     deck.priceValue = totalPrice;
@@ -30,6 +40,36 @@ const normalizeCardName = (name) => {
         .replace(/æ/g, 'ae');
 };
 
+const hydrateDeck = async (deck) => {
+    if (!deck) return null;
+    
+    const deckObj = deck.toObject ? deck.toObject() : deck;
+    
+    const allScryfallIds = [
+        ...(deckObj.cards || []),
+        ...(deckObj.sideboard || []),
+        ...(deckObj.startInPlay || [])
+    ];
+    
+    if (allScryfallIds.length === 0) {
+        return {
+            ...deckObj,
+            cards: [],
+            sideboard: [],
+            startInPlay: []
+        };
+    }
+    
+    const cardMap = await cardCache.batchFetch(allScryfallIds);
+    
+    return {
+        ...deckObj,
+        cards: (deckObj.cards || []).map(id => cardMap[id]).filter(Boolean),
+        sideboard: (deckObj.sideboard || []).map(id => cardMap[id]).filter(Boolean),
+        startInPlay: (deckObj.startInPlay || []).map(id => cardMap[id]).filter(Boolean)
+    };
+};
+
 router.get('/', auth, async (req, res) => {
     try {
         const { format, owner } = req.query;
@@ -40,12 +80,13 @@ router.get('/', auth, async (req, res) => {
 
         const decks = await Deck.find(query)
             .populate('owner', 'username avatarUrl')
-            .populate('cards')
-            .populate('sideboard')
-            .populate('startInPlay')
             .sort({ createdAt: -1 });
 
-        res.json(decks);
+        const hydratedDecks = await Promise.all(
+            decks.map(deck => hydrateDeck(deck))
+        );
+
+        res.json(hydratedDecks);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -54,12 +95,13 @@ router.get('/', auth, async (req, res) => {
 router.get('/my-decks', auth, async (req, res) => {
     try {
         const decks = await Deck.find({ owner: req.user._id })
-            .populate('cards')
-            .populate('sideboard')
-            .populate('startInPlay')
             .sort({ updatedAt: -1 });
 
-        res.json(decks);
+        const hydratedDecks = await Promise.all(
+            decks.map(deck => hydrateDeck(deck))
+        );
+
+        res.json(hydratedDecks);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -68,16 +110,15 @@ router.get('/my-decks', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
     try {
         const deck = await Deck.findById(req.params.id)
-            .populate('owner', 'username avatarUrl')
-            .populate('cards')
-            .populate('sideboard')
-            .populate('startInPlay');
+            .populate('owner', 'username avatarUrl');
 
         if (!deck) {
             return res.status(404).json({ message: 'Deck not found' });
         }
 
-        res.json(deck);
+        const hydratedDeck = await hydrateDeck(deck);
+
+        res.json(hydratedDeck);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -112,12 +153,9 @@ router.post('/', auth, async (req, res) => {
             { $push: { currentDecks: savedDeck._id } }
         );
 
-        const populatedDeck = await Deck.findById(savedDeck._id)
-            .populate('cards')
-            .populate('sideboard')
-            .populate('startInPlay');
+        const hydratedDeck = await hydrateDeck(savedDeck);
 
-        res.status(201).json(populatedDeck);
+        res.status(201).json(hydratedDeck);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -139,21 +177,17 @@ router.patch('/:id', auth, async (req, res) => {
             req.params.id,
             req.body,
             { new: true, runValidators: true }
-        )
-            .populate('cards')
-            .populate('sideboard')
-            .populate('startInPlay');
+        );
 
         if (req.body.cards) {
             await calculateDeckPrice(updatedDeck._id);
-            const recalculatedDeck = await Deck.findById(updatedDeck._id)
-                .populate('cards')
-                .populate('sideboard')
-                .populate('startInPlay');
-            return res.json(recalculatedDeck);
+            const recalculatedDeck = await Deck.findById(updatedDeck._id);
+            const hydratedDeck = await hydrateDeck(recalculatedDeck);
+            return res.json(hydratedDeck);
         }
 
-        res.json(updatedDeck);
+        const hydratedDeck = await hydrateDeck(updatedDeck);
+        res.json(hydratedDeck);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -172,29 +206,28 @@ router.post('/:id/cards/:cardId', auth, async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to edit this deck' });
         }
 
-        const card = await Card.findById(req.params.cardId);
-        if (!card) {
-            return res.status(404).json({ message: 'Card not found' });
+        const scryfallId = req.params.cardId;
+
+        const cardData = await cardCache.fetch(scryfallId);
+        if (!cardData) {
+            return res.status(404).json({ message: 'Card not found in R2 storage' });
         }
 
         if (zone === 'sideboard') {
-            deck.sideboard.push(req.params.cardId);
+            deck.sideboard.push(scryfallId);
         } else if (zone === 'startInPlay') {
-            deck.startInPlay.push(req.params.cardId);
+            deck.startInPlay.push(scryfallId);
         } else {
-            deck.cards.push(req.params.cardId);
+            deck.cards.push(scryfallId);
         }
         
         await deck.save();
-
         await calculateDeckPrice(deck._id);
 
-        const updatedDeck = await Deck.findById(deck._id)
-            .populate('cards')
-            .populate('sideboard')
-            .populate('startInPlay');
+        const updatedDeck = await Deck.findById(deck._id);
+        const hydratedDeck = await hydrateDeck(updatedDeck);
 
-        res.json(updatedDeck);
+        res.json(hydratedDeck);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -248,11 +281,24 @@ router.post('/:id/import', auth, async(req, res) => {
         const scryfallResult = await scryfallService.getCardsBatch(uniqueCardNames);
         console.log('Scryfall found:', scryfallResult.found.length, 'Not found:', scryfallResult.notFound.length);
         
-        const cachedCards = await scryfallService.cacheCardsBatch(scryfallResult.found);
-        console.log('Cached cards:', cachedCards.length);
+        const uploadPromises = scryfallResult.found.map(async (card) => {
+            try {
+                const exists = await cardExistsInR2(card.scryfallId);
+                if (!exists) {
+                    await uploadCardToR2(card.scryfallId, card);
+                }
+                return card;
+            } catch (error) {
+                console.error(`Failed to upload card ${card.name}:`, error);
+                return null;
+            }
+        });
+        
+        const uploadedCards = (await Promise.all(uploadPromises)).filter(Boolean);
+        console.log('Uploaded/verified cards in R2:', uploadedCards.length);
         
         const cardMap = new Map();
-        cachedCards.forEach(card => {
+        uploadedCards.forEach(card => {
             if (card && card.name) {
                 const normalizedName = normalizeCardName(card.name);
                 cardMap.set(normalizedName, card);
@@ -271,9 +317,9 @@ router.post('/:id/import', auth, async(req, res) => {
             
             console.log(`Looking for "${parsedLine.name}" (normalized: "${normalizedName}"):`, card ? 'FOUND' : 'NOT FOUND');
             
-            if (card) {
+            if (card && card.scryfallId) {
                 for (let i = 0; i < parsedLine.quantity; i++) {
-                    deck.cards.push(card._id);
+                    deck.cards.push(card.scryfallId);
                     validPrice += (card.priceValue || 0);
                 }
                 addedCards.push({ 
@@ -290,10 +336,8 @@ router.post('/:id/import', auth, async(req, res) => {
         deck.priceValue = validPrice;
         await deck.save();
         
-        const updatedDeck = await Deck.findById(deck._id)
-            .populate('cards')
-            .populate('sideboard')
-            .populate('startInPlay');
+        const updatedDeck = await Deck.findById(deck._id);
+        const hydratedDeck = await hydrateDeck(updatedDeck);
         
         console.log('Import complete. Added:', addedCards.length, 'Failed:', failedCards.length, 'Not found:', scryfallResult.notFound.length);
     
@@ -301,7 +345,7 @@ router.post('/:id/import', auth, async(req, res) => {
             addedCards: addedCards,
             invalidCards: scryfallResult.notFound,
             failedCards: failedCards, 
-            updatedDeck: updatedDeck
+            updatedDeck: hydratedDeck
         });
     } catch (err) {
         console.error('Import error:', err);
@@ -322,19 +366,21 @@ router.delete('/:id/cards/:cardId', auth, async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to edit this deck' });
         }
 
+        const scryfallId = req.params.cardId;
         let cardIndex;
+
         if (zone === 'sideboard') {
-            cardIndex = deck.sideboard.findIndex(c => c.toString() === req.params.cardId);
+            cardIndex = deck.sideboard.findIndex(id => id === scryfallId);
             if (cardIndex > -1) {
                 deck.sideboard.splice(cardIndex, 1);
             }
         } else if (zone === 'startInPlay') {
-            cardIndex = deck.startInPlay.findIndex(c => c.toString() === req.params.cardId);
+            cardIndex = deck.startInPlay.findIndex(id => id === scryfallId);
             if (cardIndex > -1) {
                 deck.startInPlay.splice(cardIndex, 1);
             }
         } else {
-            cardIndex = deck.cards.findIndex(c => c.toString() === req.params.cardId);
+            cardIndex = deck.cards.findIndex(id => id === scryfallId);
             if (cardIndex > -1) {
                 deck.cards.splice(cardIndex, 1);
             }
@@ -343,12 +389,10 @@ router.delete('/:id/cards/:cardId', auth, async (req, res) => {
         await deck.save();
         await calculateDeckPrice(deck._id);
 
-        const updatedDeck = await Deck.findById(deck._id)
-            .populate('cards')
-            .populate('sideboard')
-            .populate('startInPlay');
+        const updatedDeck = await Deck.findById(deck._id);
+        const hydratedDeck = await hydrateDeck(updatedDeck);
 
-        res.json(updatedDeck);
+        res.json(hydratedDeck);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -381,24 +425,26 @@ router.delete('/:id', auth, async (req, res) => {
 
 router.get('/:id/stats', auth, async (req, res) => {
     try {
-        const deck = await Deck.findById(req.params.id)
-            .populate('cards');
+        const deck = await Deck.findById(req.params.id);
 
         if (!deck) {
             return res.status(404).json({ message: 'Deck not found' });
         }
 
+        const cardMap = await cardCache.batchFetch(deck.cards);
+        const cards = deck.cards.map(id => cardMap[id]).filter(Boolean);
+
         const stats = {
-            totalCards: deck.cards.length,
+            totalCards: cards.length,
             totalPrice: deck.priceValue,
             cardTypes: {},
             manaCurve: {}
         };
 
-        deck.cards.forEach(card => {
+        cards.forEach(card => {
             stats.cardTypes[card.type] = (stats.cardTypes[card.type] || 0) + 1;
             
-            const cmc = card.manaCost.length;
+            const cmc = card.manaCost?.length || 0;
             stats.manaCurve[cmc] = (stats.manaCurve[cmc] || 0) + 1;
         });
 

@@ -17,8 +17,7 @@ const deckSchema = new mongoose.Schema(
         },
         cards: [
             {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Card',
+                type: String
             }
         ],
         format: {
@@ -26,32 +25,16 @@ const deckSchema = new mongoose.Schema(
             required: true,
         },
         sideboard: [{ 
-            type: mongoose.Schema.Types.ObjectId, ref: 'Card' 
+            type: String
         }],
         startInPlay: [{ 
-            type: mongoose.Schema.Types.ObjectId, ref: 'Card' 
+            type: String
         }]
     },
     {
         timestamps: true,
     }
 );
-
-deckSchema.virtual('calculatedPrice').get(function() {
-    if (!this.cards || this.cards.length === 0) return 0;
-    return this.cards.reduce((total, card) => {
-        return total + (card.priceValue || 0);
-    }, 0);
-});
-
-deckSchema.methods.updatePrice = async function() {
-    await this.populate('cards');
-    this.priceValue = this.calculatedPrice;
-    return this.save();
-};
-
-deckSchema.set('toJSON', { virtuals: true });
-deckSchema.set('toObject', { virtuals: true });
 
 const Deck = mongoose.model('Deck', deckSchema);
 module.exports = Deck;
