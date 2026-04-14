@@ -5,18 +5,15 @@ console.log('Final API_BASE_URL:', API_BASE_URL);
 
 const api = axios.create({
     baseURL: API_BASE_URL,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json'
     },
 });
 
-// Request interceptor to add auth token
+//before request leaves
 api.interceptors.request.use(
     config => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
         return config;
     },
     (err) => {
@@ -24,48 +21,61 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor for error handling
+//after response arrives
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
-            // Token expired or invalid
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
+        if (error.response?.status === 401) { //unauthorized/session expired
+            const currentPath = window.location.pathname;
+
+            if (currentPath !== '/auth') {          //was '/login'
+                window.location.href = '/auth';     
+            }
         }
         return Promise.reject(error);
     }
 );
 
-// Auth API
 export const authAPI = {
     login: async(loginData) => {
         const response = await api.post('/auth/login', loginData);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
+        sessionStorage.setItem('user', JSON.stringify(response.data.user));
         return response.data;
     },
     register: async(signupData) => {
         const response = await api.post('/auth/register', signupData);
-        if (response.data.token) {
-            localStorage.setItem('user', JSON.stringify(response.data.user));
-            localStorage.setItem('token', response.data.token);
-        }
         return response.data;
     },
-    logout: () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+    logout: async () => {
+        try {
+            await api.post('/auth/logout'); 
+        } catch (err) {}
+        sessionStorage.removeItem('user');
+    },
+    fetchCurrentUser: async() => {
+        const stored = sessionStorage.getItem('user');
+        if (!stored) return null;
+
+        try {   
+            const response = await api.get('/auth/me');
+            sessionStorage.setItem('user', JSON.stringify(response.data.user));
+            return response.data.user;
+        } catch {
+            sessionStorage.removeItem('user'); // clean up stale data (issue when user local storage was stale or corrupted and it couldn't set a new one so just delete first, 401 loop)
+            return null;    
+        }
+    },
+    requestPasswordReset: async (email) => {
+        const response = await api.post('/auth/forgot-password', { email });
+        return response.data;
+    },
+    resetPassword: async (token, newPassword) => {
+        const response = await api.post('/auth/reset-password', { token, newPassword });
+        return response.data;   
     },
 };
 
-// Card API
 export const cardAPI = {
-    getAllCards: async(params = {}) => {
-        const response = await api.get('/card', { params });
-        return response.data;
-    },
     getCardById: async(cardId) => {
         const response = await api.get(`/card/${cardId}`);
         return response.data;
@@ -74,21 +84,12 @@ export const cardAPI = {
         const response = await api.get(`/card/search/${searchTerm}`);
         return response.data;
     },
-    createCard: async(cardData) => {
-        const response = await api.post('/card', cardData);
+    searchTokens: async(searchTerm) => {
+        const response = await api.get(`/card/search-tokens/${searchTerm}`);
         return response.data;
     },
-    updateCard: async(cardId, cardData) => {
-        const response = await api.patch(`/card/${cardId}`, cardData);
-        return response.data;
-    },
-    deleteCard: async(cardId) => {
-        const response = await api.delete(`/card/${cardId}`);
-        return response.data;
-    }
 };
 
-// Deck API
 export const deckAPI = {
     getAllDecks: async(params = {}) => {
         const response = await api.get('/deck', { params });
@@ -114,14 +115,12 @@ export const deckAPI = {
         const response = await api.delete(`/deck/${deckId}`);
         return response.data;
     },
-    addCardToDeck: async(deckId, cardId, zone = 'mainDeck') => {
-        const response = await api.post(`/deck/${deckId}/cards/${cardId}`, { zone });
+    addCardToDeck: async(deckId, cardId, zone = 'mainDeck', quantity = 1) => {
+        const response = await api.post(`/deck/${deckId}/cards/${cardId}`, { zone, quantity });
         return response.data;
     },
-    removeCardFromDeck: async(deckId, cardId, zone = 'mainDeck') => {
-        const response = await api.delete(`/deck/${deckId}/cards/${cardId}`, { 
-            data: { zone }
-        });
+    removeCardFromDeck: async(deckId, cardId, zone = 'mainDeck', quantity = 1) => {
+        const response = await api.delete(`/deck/${deckId}/cards/${cardId}`, { data: { zone, quantity }});
         return response.data;
     },
     importDeck: async(deckId, decklist) => {
@@ -134,7 +133,6 @@ export const deckAPI = {
     }
 };
 
-// Game API
 export const gameAPI = {
     getAllGames: async(params = {}) => {
         const response = await api.get('/games', { params });
@@ -178,12 +176,10 @@ export const gameAPI = {
     }
 };
 
-// Helper functions
-export const getAuthToken = () => localStorage.getItem('token');
 export const getCurrentUser = () => {
-    const user = localStorage.getItem('user');
+    const user = sessionStorage.getItem('user');
     return user ? JSON.parse(user) : null;
 };
-export const isAuthenticated = () => !!getAuthToken();
+export const isAuthenticated = () => !!getCurrentUser();
 
 export default api;

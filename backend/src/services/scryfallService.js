@@ -1,5 +1,4 @@
 const axios = require('axios');
-const Card = require('../models/Card');
 
 const SCRYFALL_API = 'https://api.scryfall.com';
 
@@ -99,17 +98,29 @@ class ScryfallService {
     }
 
     transformScryfallCard(scryfallCard) {
-        const rarity = scryfallCard.rarity || 'common';
-        
-        let imageUrl = '';
-        let altImageUrl = '';
-        
-        if (scryfallCard.image_uris?.normal) {
-            imageUrl = scryfallCard.image_uris.normal;
-        } else if (scryfallCard.card_faces?.length >= 1) {
-            imageUrl = scryfallCard.card_faces[0]?.image_uris?.normal || '';
-            if (scryfallCard.card_faces.length >= 2) {
-                altImageUrl = scryfallCard.card_faces[1]?.image_uris?.normal || '';
+    const rarity = scryfallCard.rarity || 'common';
+    
+    let imageUrl = '';
+    let altImageUrl = '';
+    let artCropUrl = '';        
+    let borderCropUrl = '';     
+    let altArtCropUrl = '';     
+
+    if (scryfallCard.image_uris) {
+        imageUrl = scryfallCard.image_uris.normal || '';
+        artCropUrl = scryfallCard.image_uris.art_crop || '';
+        borderCropUrl = scryfallCard.image_uris.border_crop || '';
+    } else if (scryfallCard.card_faces?.length >= 1) {
+            const face0 = scryfallCard.card_faces[0];
+            const face1 = scryfallCard.card_faces[1];
+
+            imageUrl = face0?.image_uris?.normal || '';
+            artCropUrl = face0?.image_uris?.art_crop || '';
+            borderCropUrl = face0?.image_uris?.border_crop || '';
+
+            if (face1) {
+                altImageUrl = face1?.image_uris?.normal || '';
+                altArtCropUrl = face1?.image_uris?.art_crop || '';
             }
         }
         
@@ -138,9 +149,16 @@ class ScryfallService {
             power: scryfallCard.power || '',
             toughness: scryfallCard.toughness || '',
             priceValue: parseFloat(scryfallCard.prices?.usd || '0') || 0,
-            imageUrl: imageUrl,
-            altImageUrl: altImageUrl,
-            hasAlternateFace: !!(altImageUrl && altImageUrl.length > 0),
+
+            imageUrl,
+            artCropUrl,
+            borderCropUrl,
+
+            altImageUrl,
+            altArtCropUrl,
+
+            hasAlternateFace: !!altImageUrl,
+
             rarity: rarity, 
             collectorNumber: scryfallCard.collector_number || '',
             scryfallId: scryfallCard.id,

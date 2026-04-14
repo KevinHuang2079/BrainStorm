@@ -9,13 +9,15 @@
     left: 0;
     right: 0;
     bottom: 0;
+    font-family: 'Crimson Text', serif;
 }
 
+/* ── Layout zones ── */
 .four-player-layout .shared-battlefield-area {
     flex: 1;
     min-height: 0;
-    border-bottom: 2px solid #444;
-    background: #1a1a1a;
+    border-bottom: 1px solid rgba(201,168,76,0.15);
+    background: rgba(8,8,15,0.6);
 }
 
 .four-player-layout .personal-battlefield-area {
@@ -26,8 +28,8 @@
 .two-player-layout .opponent-battlefield-area {
     flex: 1;
     min-height: 0;
-    border-bottom: 2px solid #444;
-    background: #1a1a1a;
+    border-bottom: 1px solid rgba(201,168,76,0.15);
+    background: rgba(8,8,15,0.5);
 }
 
 .two-player-layout .personal-battlefield-area {
@@ -35,22 +37,28 @@
     min-height: 0;
 }
 
+/* ── Quadrant grid (4-player) ── */
 .quadrant-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
     height: 100%;
     width: 100%;
-    gap: 2px;
-    background: #333;
+    gap: 1px;
+    background: rgba(201,168,76,0.08);
 }
 
 .quadrant {
-    background: #2a2a2a;
+    background: rgba(14,14,26,0.85);
     position: relative;
     padding: 12px;
     overflow: hidden;
     min-height: 0;
+    transition: background 0.2s;
+}
+
+.quadrant:hover {
+    background: rgba(14,14,26,0.95);
 }
 
 .quadrant-cards {
@@ -69,16 +77,17 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: transparent;
-    color: rgba(255, 255, 255, 0.3);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: bold;
+    color: rgba(201,168,76,0.12);
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
     z-index: 0;
     pointer-events: none;
+    white-space: nowrap;
 }
 
+/* ── Opponent area (2-player) ── */
 .opponent-battlefield-area {
     position: relative;
     display: flex;
@@ -99,25 +108,41 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: transparent;
-    color: rgba(255, 255, 255, 0.3);
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: bold;
+    color: rgba(201,168,76,0.12);
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
     z-index: 0;
     pointer-events: none;
+    white-space: nowrap;
 }
 
+/* ── Personal battlefield ── */
 .personal-battlefield-area {
-    background: #222;
+    background: rgba(12,12,22,0.9);
     position: relative;
-    border-top: .5px solid #4a9eff;
+    border-top: 1px solid rgba(201,168,76,0.25);
     width: 100%;
     height: 100%;
     padding: 0;
     overflow: hidden;
-    min-height: 0; 
+    min-height: 0;
+    /* Subtle inner glow on the player's side */
+    box-shadow: inset 0 4px 24px rgba(201,168,76,0.04);
+}
+
+/* Thin gold line top accent */
+.personal-battlefield-area::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(201,168,76,0.35), transparent);
+    pointer-events: none;
+    z-index: 1;
 }
 
 .personal-battlefield-cards {
@@ -128,7 +153,7 @@
     bottom: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden; 
+    overflow: hidden;
 }
 
 .personal-battlefield-label {
@@ -138,46 +163,53 @@
     transform: translate(-50%, -50%);
     background: transparent;
     border: none;
-    color: rgba(74, 158, 255, 0.3);
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: bold;
+    color: rgba(201,168,76,0.1);
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
     z-index: 0;
     pointer-events: none;
+    white-space: nowrap;
 }
 
+/* ── Cards ── */
 .battlefield-grid {
-    border: 1px solid #444;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(201,168,76,0.2);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
 }
 
 .draggable-card-wrapper {
     pointer-events: auto;
+    overflow: visible;
 }
 
 .battlefield-card {
     position: relative;
     width: 100%;
     height: 100%;
-    transition: transform 0.2s, opacity 0.2s;
+    transition: transform 0.15s, opacity 0.15s;
 }
 
-.battlefield-card:hover {
-    transform: scale(1.05);
-    z-index: 10 !important;
-}
 
 .battlefield-card-image {
     width: 100%;
     height: 100%;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-    border: 2px solid #444;
+    border-radius: 6px;
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(201,168,76,0.15);
     pointer-events: none;
     user-select: none;
     display: block;
     object-fit: cover;
+    transition: box-shadow 0.15s;
+}
+
+.draggable-card-wrapper:hover .battlefield-card-image {
+    box-shadow:
+        0 4px 16px rgba(0,0,0,0.8),
+        0 0 0 1px rgba(201,168,76,0.35);
 }
 
 .opponent-card-wrapper,
@@ -200,13 +232,15 @@
     height: 100%;
 }
 
+/* ── Clone indicator ── */
 .clone-indicator {
     position: absolute;
     top: 4px;
     left: 4px;
-    background: rgba(147, 51, 234, 0.9);
-    color: white;
-    border-radius: 4px;
+    background: rgba(122, 95, 40, 0.92);
+    border: 1px solid rgba(201,168,76,0.5);
+    color: var(--gold-light, #e8c97a);
+    border-radius: 3px;
     width: 20px;
     height: 20px;
     display: flex;
@@ -214,9 +248,10 @@
     justify-content: center;
     pointer-events: none;
     z-index: 1;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
 
+/* ── Counters ── */
 .counters-container {
     position: absolute;
     top: 4px;
@@ -236,35 +271,42 @@
 }
 
 .card-counter {
-    background: rgba(0, 0, 0, 0.85);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(8,8,15,0.9);
+    color: var(--gold-light, #e8c97a);
+    border: 1px solid rgba(201,168,76,0.4);
     border-radius: 50%;
     width: 18px;
     height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
-    font-weight: bold;
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    font-weight: 600;
     cursor: pointer;
     user-select: none;
     transition: all 0.15s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    box-shadow:
+        0 1px 4px rgba(0,0,0,0.6),
+        0 0 6px rgba(201,168,76,0.1);
 }
 
 .card-counter:hover {
-    background: rgba(34, 197, 94, 0.9);
+    background: rgba(201,168,76,0.2);
+    border-color: rgba(201,168,76,0.7);
     transform: scale(1.15);
-    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.6),
+        0 0 8px rgba(201,168,76,0.25);
 }
 
 .remove-counter-btn {
     position: absolute;
     top: -6px;
     right: -6px;
-    background: rgba(220, 38, 38, 0.95);
-    color: white;
+    background: rgba(160,56,10,0.95);
+    border: 1px solid rgba(255,100,50,0.4);
+    color: rgba(255,200,180,0.9);
     border-radius: 50%;
     width: 14px;
     height: 14px;
@@ -275,19 +317,63 @@
     line-height: 1;
     font-weight: bold;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
     transition: all 0.15s ease;
 }
 
 .remove-counter-btn:hover {
-    background: rgba(185, 28, 28, 1);
+    background: rgba(180,40,10,1);
     transform: scale(1.1);
+    box-shadow: 0 0 8px rgba(160,56,10,0.5);
 }
 
 .card-counter-wrapper:hover .remove-counter-btn {
     display: flex;
 }
 
+/* ── Loading ── */
+.battlefield-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    color: rgba(201,168,76,0.4);
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+}
+
+/* ── Tap / Shake ── */
+.draggable-card-wrapper.tapped,
+.static-card-wrapper.tapped {
+    transform: rotate(90deg);
+}
+
+.draggable-card-wrapper.tapped .battlefield-card-image,
+.static-card-wrapper.tapped .battlefield-card-image {
+    transform: none;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+    20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.draggable-card-wrapper.shaking,
+.static-card-wrapper.shaking {
+    animation: shake 0.2s ease-in-out;
+}
+
+.draggable-card-wrapper.tapped.shaking,
+.static-card-wrapper.tapped.shaking {
+    animation: shake 0.2s ease-in-out;
+    transform: rotate(90deg);
+}
+
+/* ── Responsive ── */
 @media (max-width: 1200px) {
     .opponent-card-wrapper,
     .quadrant-card-wrapper {
@@ -304,7 +390,7 @@
         min-width: 30px;
         max-width: 70px;
     }
-    
+
     .quadrant {
         padding: 8px;
     }
@@ -312,8 +398,8 @@
     .personal-battlefield-label,
     .opponent-label,
     .quadrant-label {
-        font-size: 10px;
-        padding: 4px 8px;
+        font-size: 0.5rem;
+        letter-spacing: 0.25em;
     }
 
     .clone-indicator {
@@ -343,7 +429,7 @@
         min-width: 25px;
         max-width: 60px;
     }
-    
+
     .quadrant {
         padding: 4px;
     }
@@ -367,46 +453,117 @@
         right: -4px;
     }
 }
+/* ── Counter Overlay ── */
+.draggable-card-wrapper .counter-overlay,
+.static-card-wrapper .counter-overlay {
+    display: none;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 20;
+    padding: 2px 0 2px;
+    flex-direction: column;
+    gap: 1px;
+    pointer-events: auto;
+    background: linear-gradient(to top, rgba(8,8,15,0.78) 0%, transparent 100%);
+    border-radius: 0 0 6px 6px;
+    overflow: hidden;
+}
 
-.battlefield-loading {
+.draggable-card-wrapper:hover .counter-overlay,
+.static-card-wrapper:hover .counter-overlay,
+.counter-overlay:hover {
+    display: flex;
+}
+
+.counter-row {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    gap: 2px;
     width: 100%;
-    color: #fff;
-    font-size: 18px;
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 0 2px;
+    position: relative;   /* anchor for the × button */
 }
 
-.draggable-card-wrapper.tapped,
-.static-card-wrapper.tapped {
-    transform: rotate(90deg);
+.counter-btn {
+    background: rgba(13, 13, 20, 0.88);
+    border: 1px solid rgba(201, 168, 76, 0.55);
+    color: rgba(201, 168, 76, 0.95);
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    font-weight: 700;
+    width: 13px;
+    height: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
 }
 
-.draggable-card-wrapper.tapped .battlefield-card-image,
-.static-card-wrapper.tapped .battlefield-card-image {
-    transform: none;
+.counter-btn:hover {
+    background: rgba(201, 168, 76, 0.22);
+    color: #f0d68a;
+    border-color: rgba(201, 168, 76, 0.9);
 }
 
-@keyframes shake {
-    0%, 100% {
-        transform: translateX(0);
-    }
-    10%, 30%, 50%, 70%, 90% {
-        transform: translateX(-4px);
-    }
-    20%, 40%, 60%, 80% {
-        transform: translateX(4px);
-    }
+.counter-input {
+    background: rgba(13, 13, 20, 0.88);
+    border: 1px solid rgba(201, 168, 76, 0.4);
+    color: rgba(201, 168, 76, 1);
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    font-weight: 700;
+    text-align: center;
+    min-width: 0;
+    width: 0;
+    flex: 1;
+    height: 13px;
+    border-radius: 2px;
+    padding: 0;
+    outline: none;
 }
 
-.draggable-card-wrapper.shaking,
-.static-card-wrapper.shaking {
-    animation: shake 0.2s ease-in-out;
+.counter-input:focus {
+    border-color: rgba(201, 168, 76, 0.9);
+    background: rgba(20, 20, 30, 0.97);
+    color: #f0d68a;
 }
 
-.draggable-card-wrapper.tapped.shaking,
-.static-card-wrapper.tapped.shaking {
-    animation: shake 0.2s ease-in-out;
-    transform: rotate(90deg);
+.counter-remove-btn:hover {
+    background: rgba(180, 40, 10, 1);
+}
+
+.counter-remove-btn {
+    background: rgba(140, 30, 10, 0.92);
+    border: 1px solid rgba(255, 80, 40, 0.5);
+    color: rgba(255, 180, 160, 0.95);
+    font-size: 9px;
+    font-weight: 700;
+    width: 13px;
+    height: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    pointer-events: auto;
+    
+}
+
+.counter-remove-btn:hover {
+    background: rgba(180, 40, 10, 1);
 }

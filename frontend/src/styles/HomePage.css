@@ -1,4 +1,4 @@
-.particles-container {
+/* .particles-container {
   position: fixed;
   top: 0;
   left: 0;
@@ -195,7 +195,7 @@
 }
 
 body {
-  background: #000000;
+  background: #08080f;  
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
@@ -204,7 +204,7 @@ body {
 }
 
 #root {
-  background: #000000;
+  background: transparent; 
   min-height: 100vh;
 }
 
@@ -359,7 +359,7 @@ input, textarea, select {
   position: relative;
   overflow: hidden; /* keeps particles contained */
   min-height: 100vh;
-  background: #000; /* fallback background color */
+  background: transparent;
 }
 
 .particles-background {

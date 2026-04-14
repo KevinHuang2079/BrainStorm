@@ -5,59 +5,12 @@ const scryfallService = require('../services/scryfallService');
 const cardCache = require('../services/r2cardCache');
 const { uploadCardToR2, cardExistsInR2 } = require('../services/r2client');
 
-router.get('/', async (req, res) => {
-    try {
-        const { 
-            page = 1, 
-            limit = 20, 
-            name
-        } = req.query;
-
-        if (!name) {
-            return res.json({
-                cards: [],
-                totalPages: 0,
-                currentPage: page,
-                total: 0,
-                source: 'scryfall'
-            });
-        }
-
-        const scryfallCards = await scryfallService.searchCards(name);
-        
-        const uploadPromises = scryfallCards.slice(0, limit).map(async (card) => {
-            try {
-                const exists = await cardExistsInR2(card.scryfallId);
-                if (!exists) {
-                    await uploadCardToR2(card.scryfallId, card);
-                }
-                return card;
-            } catch (error) {
-                console.error(`Failed to upload card ${card.name}:`, error);
-                return null;
-            }
-        });
-        
-        const cards = (await Promise.all(uploadPromises)).filter(Boolean);
-
-        res.json({
-            cards,
-            totalPages: Math.ceil(cards.length / limit),
-            currentPage: page,
-            total: cards.length,
-            source: 'scryfall'
-        });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
+//searchCards
 router.get('/search/:term', async (req, res) => {
     try {
         const searchTerm = req.params.term;
-
-        const scryfallCards = await scryfallService.searchCards(searchTerm);
         
+        const scryfallCards = await scryfallService.searchCards(searchTerm);
         const uploadPromises = scryfallCards.map(async (card) => {
             try {
                 const exists = await cardExistsInR2(card.scryfallId);
@@ -70,7 +23,6 @@ router.get('/search/:term', async (req, res) => {
                 return null;
             }
         });
-        
         const cards = (await Promise.all(uploadPromises)).filter(Boolean);
 
         res.json(cards);
@@ -79,6 +31,35 @@ router.get('/search/:term', async (req, res) => {
     }
 });
 
+// searchTokens - separate from searchCards to avoid affecting deck import
+router.get('/search-tokens/:term', async (req, res) => {
+    try {
+        const searchTerm = req.params.term;
+        
+        // Append Scryfall token filter to the query
+        const scryfallCards = await scryfallService.searchCards(`t:token ${searchTerm}`);
+        
+        const uploadPromises = scryfallCards.map(async (card) => {
+            try {
+                const exists = await cardExistsInR2(card.scryfallId);
+                if (!exists) {
+                    await uploadCardToR2(card.scryfallId, card);
+                }
+                return card;
+            } catch (error) {
+                console.error(`Failed to upload token ${card.name}:`, error);
+                return null;
+            }
+        });
+        const cards = (await Promise.all(uploadPromises)).filter(Boolean);
+
+        res.json(cards);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+//getCardById
 router.get('/:id', async (req, res) => {
     try {
         const scryfallId = req.params.id;

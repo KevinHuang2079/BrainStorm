@@ -1,34 +1,32 @@
 // frontend/contexts/webSocket.js
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import { AuthContext } from './auth'; 
+import { AuthContext } from './auth';
 
 const WebSocketContext = createContext(null);
 
 export const WebSocketProvider = ({ children }) => {
-    const [socket, setSocket] = useState(null);
+    const socketRef = useRef(null); 
     const [isConnected, setIsConnected] = useState(false);
     const [error, setError] = useState(null);
-    const { token } = useContext(AuthContext);
+    const { user } = useContext(AuthContext);
 
     useEffect(() => {
-        if (!token) {
-            if (socket) {
-                socket.disconnect();
-                setSocket(null);
+        if (!user) {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
             }
             setIsConnected(false);
             return;
         }
 
         const newSocket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5002', {
-            auth: {
-                token: token
-            },
+            withCredentials: true,
             autoConnect: true,
             reconnection: true,
             reconnectionDelay: 1000,
-            reconnectionAttempts: 5
+            reconnectionAttempts: 5,
         });
 
         newSocket.on('connect', () => {
@@ -53,20 +51,16 @@ export const WebSocketProvider = ({ children }) => {
             setError(err.message || 'An error occurred');
         });
 
-        setSocket(newSocket);
+        socketRef.current = newSocket;
 
         return () => {
             newSocket.disconnect();
+            socketRef.current = null;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token]);
+    }, [user]);
 
     return (
-        <WebSocketContext.Provider value={{ 
-            socket, 
-            isConnected, 
-            error 
-        }}>
+        <WebSocketContext.Provider value={{ socket: socketRef.current, isConnected, error }}>
             {children}
         </WebSocketContext.Provider>
     );

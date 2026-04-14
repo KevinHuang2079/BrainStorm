@@ -1,3 +1,4 @@
+//lazy db/card cache of cards touched
 const { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 require('dotenv').config();
 

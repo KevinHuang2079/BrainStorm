@@ -5,42 +5,46 @@ import { WebSocketProvider } from './contexts/webSocket';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
 import GameRoomPage from './pages/GameRoomPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { useContext } from 'react';
 
 function AppRoutes() {
-  const { token, logout } = useContext(AuthContext);
+  const { user, loading, logout } = useContext(AuthContext);
   const location = useLocation();
   
-  // Check if we're on a game room page
   const isGameRoom = location.pathname.startsWith('/game/');
+
+  if (loading) return null;
 
   return (
     <div className="App">
-      {token && !isGameRoom && (
+      {/* {user && !isGameRoom && (
         <div className="top-bar">
           <button className="logout-button" onClick={() => logout()}>Logout</button>
         </div>)
-      }
+      } */}
       <Routes>
-        <Route 
-          path="/auth" 
-          element={token ? <Navigate to="/home" replace /> : <AuthPage />} 
-        />
-        <Route 
-          path="/home" 
-          element={token ? <HomePage /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/game/:gameId" 
-          element={token ? <GameRoomPage /> : <Navigate to="/auth" replace />} 
-        />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        
         <Route 
           path="/" 
-          element={token ? <Navigate to="/home" replace /> : <Navigate to="/auth" replace />} 
+          element={user ? <Navigate to="/home" replace /> : <Navigate to="/auth" replace />} 
         />
         <Route 
           path="*" 
-          element={token ? <Navigate to="/home" replace /> : <Navigate to="/auth" replace />} 
+          element={user ? <Navigate to="/home" replace /> : <Navigate to="/auth" replace />} 
+        />
+        <Route 
+          path="/home" 
+          element={user ? <HomePage /> : <Navigate to="/auth" replace />} 
+        />
+        <Route 
+          path="/game/:gameId" 
+          element={user ? <GameRoomPage /> : <Navigate to="/auth" replace />} 
+        />
+        <Route 
+          path="/auth" 
+          element={user ? <Navigate to="/home" replace /> : <AuthPage />} 
         />
       </Routes>
     </div>

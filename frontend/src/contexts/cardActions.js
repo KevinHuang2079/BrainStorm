@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useCallback } from 'react';
 
 const CardActionsContext = createContext();
 
@@ -62,16 +62,18 @@ export const CardActionsProvider = ({ children, onGameAction, playerStates, user
     };
 
     const tapCard = (cardId) => {
+        const card = playerStates[userId]?.battlefield?.find(c => c._id === cardId);
         onGameAction({
             action: 'tapCard',
-            data: { cardId }
+            data: { cardId, extra: { isTapped: card ? !card.isTapped : true } }
         });
     };
 
     const toggleFaceDown = (cardId) => {
+        const card = playerStates[userId]?.battlefield?.find(c => c._id === cardId);
         onGameAction({
             action: 'toggleFaceDown',
-            data: { cardId }
+            data: { cardId, extra: { isFaceDown: card ? !card.isFaceDown : true } }
         });
     };
 
@@ -96,11 +98,8 @@ export const CardActionsProvider = ({ children, onGameAction, playerStates, user
         });
     };
 
-    const incrementCounter = (cardId, counterIndex) => {
-        onGameAction({
-            action: 'incrementCounter',
-            data: { cardId, counterIndex }
-        });
+    const incrementCounter = (cardId, index, delta = 1) => {
+        onGameAction({ action: 'incrementCounter', data: { cardId, counterIndex: index, delta } });
     };
 
     const cloneCard = (card) => {
@@ -175,6 +174,27 @@ export const CardActionsProvider = ({ children, onGameAction, playerStates, user
         });
     };
 
+    const shakeOpponentCard = useCallback((cardId, targetPlayerId) => {
+        onGameAction({
+            action: 'shakeOpponentCard',
+            data: { cardId, targetPlayerId }
+        });
+    }, [onGameAction]);
+
+    const cloneOpponentCard = useCallback((card) => {
+        const cloneId = `${card._id}_clone_${Date.now()}`;
+        const zIndex = (playerStates[userId]?.battlefield?.length || 0) + 1;
+        onGameAction({
+            action: 'cloneOpponentCard',
+            data: {
+                card,
+                cloneId,
+                position: { xPercent: 5, yPercent: 5 },
+                zIndex
+            }
+        });
+    }, [onGameAction, playerStates, userId]);
+
     const value = {
         drawCard,
         playCard,
@@ -198,7 +218,9 @@ export const CardActionsProvider = ({ children, onGameAction, playerStates, user
         untapAll,
         mulligan,
         playerStates,
-        userId
+        userId,
+        shakeOpponentCard,
+        cloneOpponentCard,
     };
 
     return (

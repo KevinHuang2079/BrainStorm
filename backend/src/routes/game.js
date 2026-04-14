@@ -168,17 +168,12 @@ router.post('/:id/leave', auth, async (req, res) => {
         if (!game) {
             return res.status(404).json({ message: 'Game not found' });
         }
-
-        if (game.status !== 'waiting') {
-            return res.status(400).json({ message: 'Cannot leave a game in progress' });
-        }
-
         if (!game.players.includes(req.user._id)) {
             return res.status(400).json({ message: 'You are not in this game' });
         }
 
         // If host leaves, delete the game
-        if (game.host.toString() === req.user._id) {
+        if (game.host.toString() === req.user._id.toString()) {
             await Game.findByIdAndDelete(req.params.id);
             
             // Remove game from all players' gamesJoined
@@ -229,6 +224,11 @@ router.post('/:id/start', auth, async (req, res) => {
 
         if (game.players.length < 2) {
             return res.status(400).json({ message: 'Need at least 2 players to start' });
+        }
+        // ✅ Use req.user._id instead, or just remove it — start doesn't need to clear state
+        if (game.savedState?.[req.user._id]) {
+            delete game.savedState[req.user._id];
+            game.markModified('savedState');
         }
 
         game.status = 'in-progress';

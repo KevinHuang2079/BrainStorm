@@ -1,285 +1,305 @@
-/* GameRoomItem.css */
+/* GameRoomItem.css — row layout */
 
-.GameRoomItem-container {
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 2px solid #333;
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.3s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6),
-              0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+/* ── Row ── */
+.gri-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.08);
+    transition: background 0.18s ease, border-color 0.18s ease;
+    position: relative;
+}
+.gri-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: transparent;
+    transition: background 0.2s ease;
+}
+.gri-row:hover {
+    background: rgba(201, 168, 76, 0.03);
+}
+.gri-row:hover::before {
+    background: rgba(201, 168, 76, 0.25);
+}
+.gri-row--mine::before {
+    background: rgba(201, 168, 76, 0.5);
+}
+.gri-row--mine {
+    background: rgba(201, 168, 76, 0.035);
+}
+.gri-row:last-child {
+    border-bottom: none;
 }
 
-.GameRoomItem-container:hover {
-  border-color: #444;
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8),
-              0 0 16px rgba(255, 255, 255, 0.1),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+/* ── Main (name + meta) ── */
+.gri-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.gri-name {
+    font-family: 'Cinzel', serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #d4b86a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gri-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Crimson Text', serif;
+    font-size: 13px;
+    color: rgba(201, 168, 76, 0.38);
+}
+.gri-sep {
+    opacity: 0.5;
+}
+.gri-format {
+    font-style: italic;
 }
 
-.GameRoomItem-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
+/* ── Player pips ── */
+.gri-players {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+.gri-pip {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cinzel', serif;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    transition: border-color 0.2s, background 0.2s;
+}
+.gri-pip--empty {
+    background: rgba(8, 8, 15, 0.6);
+    color: rgba(201, 168, 76, 0.15);
+    border-style: dashed;
+}
+.gri-pip--filled {
+    background: rgba(201, 168, 76, 0.1);
+    color: #c9a84c;
+    border-color: rgba(201, 168, 76, 0.35);
+}
+.gri-pip--host {
+    background: rgba(201, 168, 76, 0.18);
+    border-color: rgba(201, 168, 76, 0.55);
+    color: #e8c97a;
+    box-shadow: 0 0 6px rgba(201, 168, 76, 0.15);
+}
+.gri-count {
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    color: rgba(201, 168, 76, 0.3);
+    margin-left: 4px;
+    white-space: nowrap;
 }
 
-.game-info {
-  flex: 1;
+/* ── Right: status + actions ── */
+.gri-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
-.game-info h3 {
-  color: #fff;
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8),
-               0 0 16px rgba(255, 255, 255, 0.2);
-  letter-spacing: 0.5px;
+/* ── Status badge ── */
+.gri-status {
+    font-family: 'Cinzel', serif;
+    font-size: 0.52rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    border: 1px solid;
+    white-space: nowrap;
+}
+.gri-status.status-waiting {
+    color: rgba(201, 168, 76, 0.4);
+    border-color: rgba(201, 168, 76, 0.15);
+    background: rgba(201, 168, 76, 0.04);
+}
+.gri-status.status-active {
+    color: rgba(100, 200, 140, 0.65);
+    border-color: rgba(100, 200, 140, 0.2);
+    background: rgba(100, 200, 140, 0.04);
+}
+.gri-status.status-full {
+    color: rgba(180, 80, 40, 0.6);
+    border-color: rgba(180, 80, 40, 0.2);
+    background: rgba(180, 80, 40, 0.04);
 }
 
-.game-status {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+/* ── Buttons ── */
+.gri-actions {
+    display: flex;
+    gap: 6px;
+}
+.gri-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.12s;
+    border: 1px solid;
+    white-space: nowrap;
+}
+.gri-btn:active:not(:disabled) {
+    transform: scale(0.97);
 }
 
-.status-waiting {
-  background: linear-gradient(145deg, #333, #1a1a1a);
-  border: 1px solid #444;
-  color: #aaa;
+.gri-btn--join,
+.gri-btn--enter {
+    background: linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(201,168,76,0.06) 100%);
+    border-color: rgba(201, 168, 76, 0.4);
+    color: #c9a84c;
+}
+.gri-btn--join:hover,
+.gri-btn--enter:hover {
+    background: linear-gradient(135deg, rgba(201,168,76,0.22) 0%, rgba(201,168,76,0.12) 100%);
+    border-color: rgba(201, 168, 76, 0.65);
+    color: #e8c97a;
+    transform: translateY(-1px);
 }
 
-.status-active {
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-  border: 1px solid #555;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
-               0 0 8px rgba(255, 255, 255, 0.3);
+.gri-btn--leave {
+    background: transparent;
+    border-color: rgba(180, 80, 40, 0.25);
+    color: rgba(180, 80, 40, 0.5);
+}
+.gri-btn--leave:hover {
+    background: rgba(180, 80, 40, 0.06);
+    border-color: rgba(180, 80, 40, 0.45);
+    color: rgba(220, 100, 60, 0.8);
 }
 
-.status-full {
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 1px solid #333;
-  color: #666;
+.gri-btn--disabled {
+    background: transparent;
+    border-color: rgba(201, 168, 76, 0.1);
+    color: rgba(201, 168, 76, 0.2);
+    cursor: not-allowed;
 }
 
-.btn-delete {
-  background: transparent;
-  border: 2px solid #333;
-  color: #666;
-  font-size: 20px;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-  line-height: 1;
-  padding: 0;
+/* ── Leave confirm modal ── */
+.gri-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(8, 8, 15, 0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: griFadeIn 0.15s ease both;
+}
+.gri-modal {
+    width: 90%;
+    max-width: 360px;
+    background: linear-gradient(145deg, #12121f 0%, #0a0a14 100%);
+    border: 1px solid rgba(201, 168, 76, 0.22);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(201, 168, 76, 0.1);
+    animation: griSlideUp 0.2s ease both;
+}
+.gri-modal::before,
+.gri-modal::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: rgba(201, 168, 76, 0.3);
+    border-style: solid;
+}
+.gri-modal::before { top: 7px; left: 7px; border-width: 1px 0 0 1px; }
+.gri-modal::after  { bottom: 7px; right: 7px; border-width: 0 1px 1px 0; }
+
+.gri-modal h3 {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #c9a84c;
+    margin: 0 0 10px;
+    font-weight: 600;
+}
+.gri-modal p {
+    font-family: 'Crimson Text', serif;
+    font-size: 15px;
+    color: rgba(201, 168, 76, 0.55);
+    margin: 0 0 20px;
+}
+.gri-modal em {
+    color: rgba(201, 168, 76, 0.8);
+    font-style: italic;
+}
+.gri-modal-actions {
+    display: flex;
+    gap: 10px;
+}
+.gri-btn--cancel {
+    flex: 1;
+    background: transparent;
+    border-color: rgba(201, 168, 76, 0.18);
+    color: rgba(201, 168, 76, 0.4);
+}
+.gri-btn--cancel:hover {
+    border-color: rgba(201, 168, 76, 0.35);
+    color: rgba(201, 168, 76, 0.7);
+}
+.gri-btn--confirm-leave {
+    flex: 1;
+    background: rgba(180, 80, 40, 0.08);
+    border-color: rgba(180, 80, 40, 0.35);
+    color: rgba(210, 100, 60, 0.8);
+}
+.gri-btn--confirm-leave:hover {
+    background: rgba(180, 80, 40, 0.15);
+    border-color: rgba(180, 80, 40, 0.55);
+    color: rgba(230, 120, 80, 0.95);
 }
 
-.btn-delete:hover {
-  border-color: #666;
-  color: #fff;
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6),
-              0 0 12px rgba(255, 255, 255, 0.2);
+@keyframes griFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes griSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.gri-inactivity {
+    font-size: 0.7rem;
+    color: var(--text-muted, #888);
+    margin-top: 2px;
 }
 
-.GameRoomItem-details {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 8px;
-  border: 1px solid #222;
+.gri-inactivity--warn {
+    color: #e07b39;
+    font-weight: 600;
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-}
-
-.detail-row:not(:last-child) {
-  border-bottom: 1px solid #1a1a1a;
-}
-
-.detail-row .label {
-  color: #888;
-  font-size: 14px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.detail-row .value {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
-               0 0 8px rgba(255, 255, 255, 0.1);
-}
-
-.GameRoomItem-players {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-  min-height: 32px;
-}
-
-.player-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 1px solid #333;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5),
-              0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-}
-
-.host-badge {
-  padding: 2px 6px;
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-  border: 1px solid #444;
-  border-radius: 4px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #ccc;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
-               0 0 6px rgba(255, 255, 255, 0.2);
-}
-
-.GameRoomItem-actions {
-  margin-top: 16px;
-}
-
-.btn-full {
-  width: 100%;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.btn-primary.btn-full {
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-  border: 2px solid #444;
-  color: #fff;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-}
-
-.btn-primary.btn-full:hover {
-  background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
-  border-color: #666;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7),
-              0 0 16px rgba(255, 255, 255, 0.2),
-              0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
-               0 0 12px rgba(255, 255, 255, 0.4);
-}
-
-.btn-disabled.btn-full {
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 2px solid #222;
-  color: #555;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.btn-disabled.btn-full:hover {
-  transform: none;
-}
-
-/* Delete Confirmation Modal */
-.room-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
-.room-modal-content {
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 2px solid #333;
-  border-radius: 12px;
-  padding: 32px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-}
-
-.room-modal-content h3 {
-  color: #fff;
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0 0 16px 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5),
-               0 0 20px rgba(255, 255, 255, 0.2);
-  letter-spacing: 0.5px;
-}
-
-.room-modal-content p {
-  color: #aaa;
-  font-size: 16px;
-  margin: 0 0 24px 0;
-  line-height: 1.5;
-}
-
-.btn-danger {
-  flex: 1;
-  padding: 12px 24px;
-  background: linear-gradient(145deg, #2a1a1a, #1a0d0d);
-  border: 2px solid #441111;
-  border-radius: 8px;
-  color: #ff6666;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
-               0 0 8px rgba(255, 102, 102, 0.3);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-.btn-danger:hover {
-  background: linear-gradient(145deg, #3a2a2a, #2a1a1a);
-  border-color: #661111;
-  color: #ff8888;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6),
-              0 0 16px rgba(255, 102, 102, 0.3);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
-               0 0 12px rgba(255, 102, 102, 0.5);
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
 }

@@ -4,21 +4,29 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+  background: #08080f;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #232526 0%, #414345 100%);
+  background: #08080f;
   background-attachment: fixed;
+  overscroll-behavior: none;
 }
 
 .App {
   min-height: 100vh;
-  background: transparent; 
-  position: relative; 
-  z-index: 1; 
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  overflow-x: hidden;
 }
 
 .top-bar {

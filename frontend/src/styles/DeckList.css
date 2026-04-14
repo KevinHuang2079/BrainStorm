@@ -1,36 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
 .deck-list-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
+  padding: 4px 2px;
+  font-family: 'Crimson Text', serif;
 }
 
 .create-deck-button {
-  padding: 14px 28px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 10px;
-  color: #ffffff;
-  font-size: 1.1rem;
+  padding: 9px 20px;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 4px;
+  color: #e8c97a;
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
   font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   cursor: pointer;
-  margin-bottom: 30px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  margin-bottom: 20px;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .create-deck-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+  background: rgba(201, 168, 76, 0.15);
+  border-color: rgba(201, 168, 76, 0.55);
+  box-shadow: 0 0 14px rgba(201, 168, 76, 0.1);
 }
 
 .decks-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 25px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
 }
 
 @media (max-width: 768px) {
   .decks-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 }

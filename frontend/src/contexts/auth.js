@@ -1,63 +1,67 @@
-import { useState, createContext } from 'react';
-import {authAPI} from '../services/api'; 
+import { useState, createContext, useEffect, useMemo, useCallback } from 'react';
+import { authAPI } from '../services/api';
+import '../styles/AuthPage.css'
 
 const AuthContext = createContext(null);
 
 const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null);
 
-  // useEffect(() => {
-  //   console.log('token', token);
-  //   console.log('user', user);
-  // })
+    useEffect(() => {
+        const restoreSession = async () => {
+            try {
+                const currUser = await authAPI.fetchCurrentUser();
+                setUser(currUser);
+            } catch {
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+        restoreSession();
+    }, []);
 
-  const register = async (registerData) => {
-    try {
-      const response = await authAPI.register(registerData);
-      setToken(response.token);
-      setUser(response.user);
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  };
+    const register = useCallback(async (registerData) => {
+        return await authAPI.register(registerData);
+    }, []);
 
-  const login = async (loginData) => {
-    try {
-      const response = await authAPI.login(loginData);
-      setToken(response.token);
-      setUser(response.user);
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  };
+    const login = useCallback(async (loginData) => {
+        const response = await authAPI.login(loginData);
+        setUser(response.user);
+        return response;
+    }, []);
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-  };
+    const requestPasswordReset = useCallback(async (email) => {
+        await authAPI.requestPasswordReset(email);
+    }, []);
 
-  const value = {
-    token,
-    user,
-    register,
-    login,
-    logout,
-  };
+    const resetPassword = useCallback(async (token, newPassword) => {
+        await authAPI.resetPassword(token, newPassword);
+    }, []);
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+    const logout = useCallback(async () => {
+        await authAPI.logout();
+        setUser(null);
+    }, []);
+
+    const value = useMemo(() => ({
+        user,
+        loading,
+        register,
+        login,
+        logout,
+        setUser,
+        requestPasswordReset,
+        resetPassword,
+    }), [user, loading, register, login, logout, requestPasswordReset, resetPassword]);
+
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
 };
-
 
 export { AuthContext };
 export default AuthProvider;

@@ -54,6 +54,10 @@ const gameSchema = new mongoose.Schema({
         ref: 'User',
         default: null
     },
+    lastActivityAt: {
+        type: Date,
+        default: Date.now
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -68,9 +72,9 @@ const gameSchema = new mongoose.Schema({
     }
 });
 
+gameSchema.index({ lastActivityAt: 1 });
 gameSchema.index({ status: 1, createdAt: -1 });
 gameSchema.index({ 'players': 1 });
 gameSchema.index({ lastStateSave: 1 }); 
 
 module.exports = mongoose.model('Game', gameSchema);
-

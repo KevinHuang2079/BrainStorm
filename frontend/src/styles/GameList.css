@@ -1,191 +1,262 @@
 /* GameList.css */
 
-.GameList-container {
-  padding: 32px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.GameList-header {
+.gl-container {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gl-header {
+  display: flex;
   align-items: center;
-  margin-bottom: 32px;
+  justify-content: space-between;
 }
 
-.GameList-header h1 {
-  color: #fff;
-  font-size: 32px;
-  font-weight: 700;
+.gl-section-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.6);
+}
+
+.gl-create-btn {
+  padding: 7px 16px;
+  background: linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(201,168,76,0.06) 100%);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 3px;
+  color: #c9a84c;
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+.gl-create-btn:hover {
+  background: linear-gradient(135deg, rgba(201,168,76,0.22) 0%, rgba(201,168,76,0.12) 100%);
+  border-color: rgba(201, 168, 76, 0.6);
+  color: #e8c97a;
+  transform: translateY(-1px);
+}
+
+/* ── Column headers ── */
+.gl-col-headers {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px 8px 18px;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.1);
+}
+.gl-col-main {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 0.5rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.28);
+}
+.gl-col-players {
+  font-family: 'Cinzel', serif;
+  font-size: 0.5rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.28);
+  flex-shrink: 0;
+}
+.gl-col-actions {
+  font-family: 'Cinzel', serif;
+  font-size: 0.5rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.28);
+  flex-shrink: 0;
+  min-width: 130px;
+  text-align: right;
+}
+
+/* ── Empty state ── */
+.gl-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 24px;
+  border: 1px dashed rgba(201, 168, 76, 0.15);
+  border-radius: 4px;
+}
+.gl-empty-icon {
+  font-size: 22px;
+  opacity: 0.25;
+  filter: sepia(1);
+}
+.gl-empty p {
   margin: 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8),
-               0 0 24px rgba(255, 255, 255, 0.3);
-  letter-spacing: 1px;
+  font-family: 'Crimson Text', serif;
+  font-size: 15px;
+  color: rgba(201, 168, 76, 0.35);
+  font-style: italic;
 }
 
-.GameList-empty {
-  text-align: center;
-  padding: 64px 24px;
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 2px solid #333;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+/* ── Games list ── */
+.gl-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(201, 168, 76, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
-.GameList-empty p {
-  color: #888;
-  font-size: 18px;
-  margin: 0;
-}
-
-.GameList-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
-}
-
-/* Modal Styles for GameList */
-.game-list-modal-overlay {
+/* ── Modal overlay ── */
+.gl-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  inset: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
+  background: rgba(8, 8, 15, 0.80);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: glFadeIn 0.18s ease both;
 }
 
-.game-list-modal-content {
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 2px solid #333;
-  border-radius: 12px;
-  padding: 32px;
+.gl-panel {
   width: 90%;
-  max-width: 500px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  max-width: 420px;
+  background: linear-gradient(145deg, #12121f 0%, #0a0a14 100%);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 4px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(201, 168, 76, 0.12);
+  position: relative;
+  overflow: hidden;
+  animation: glSlideUp 0.22s ease both;
 }
-
-.game-list-modal-content h2 {
-  color: #fff;
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 24px 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5),
-               0 0 20px rgba(255, 255, 255, 0.2);
-  letter-spacing: 0.5px;
+.gl-panel::before,
+.gl-panel::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(201, 168, 76, 0.35);
+  border-style: solid;
 }
+.gl-panel::before { top: 8px;    left: 8px;  border-width: 1px 0 0 1px; }
+.gl-panel::after  { bottom: 8px; right: 8px; border-width: 0 1px 1px 0; }
 
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  color: #ccc;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: 12px 16px;
-  background: #0a0a0a;
-  border: 2px solid #333;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 16px;
-  transition: all 0.3s;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: #666;
-  background: #111;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5),
-              0 0 12px rgba(255, 255, 255, 0.15);
-}
-
-.form-group input::placeholder {
-  color: #555;
-}
-
-.form-group select {
-  cursor: pointer;
-}
-
-.form-group select option {
-  background: #1a1a1a;
-  color: #fff;
-}
-
-.modal-actions {
+.gl-modal-header {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 0;
 }
-
-.btn-primary {
-  padding: 12px 24px;
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-  border: 2px solid #444;
-  border-radius: 8px;
-  color: #fff;
+.gl-eyebrow {
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #c9a84c;
+  opacity: 0.85;
+}
+.gl-close {
+  background: none;
+  border: none;
+  color: rgba(201, 168, 76, 0.4);
   font-size: 16px;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  padding: 2px 6px;
+  line-height: 1;
+  transition: color 0.2s;
 }
+.gl-close:hover { color: #c9a84c; }
 
-.btn-primary:hover {
-  background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
-  border-color: #666;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7),
-              0 0 16px rgba(255, 255, 255, 0.2),
-              0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
-               0 0 12px rgba(255, 255, 255, 0.4);
+.gl-modal-body {
+  padding: 20px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-
-.btn-primary:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+.gl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
+.gl-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.55);
+}
+.gl-input,
+.gl-select {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(8, 8, 15, 0.7);
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: 3px;
+  color: #e8d9b0;
+  font-family: 'Crimson Text', serif;
+  font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.gl-input::placeholder { color: rgba(201, 168, 76, 0.2); }
+.gl-input:focus,
+.gl-select:focus {
+  outline: none;
+  border-color: rgba(201, 168, 76, 0.5);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.08);
+}
+.gl-select { cursor: pointer; }
+.gl-select option { background: #0e0e1a; color: #e8d9b0; }
 
-.btn-secondary {
+.gl-modal-footer {
+  display: flex;
+  gap: 10px;
+  padding: 20px;
+}
+.gl-cancel-btn {
   flex: 1;
-  padding: 12px 24px;
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 2px solid #333;
-  border-radius: 8px;
-  color: #999;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: 3px;
+  color: rgba(201, 168, 76, 0.4);
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.3s;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  transition: border-color 0.2s, color 0.2s;
 }
+.gl-cancel-btn:hover {
+  border-color: rgba(201, 168, 76, 0.35);
+  color: rgba(201, 168, 76, 0.7);
+}
+.gl-submit-btn {
+  flex: 2;
+  padding: 10px;
+  background: linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.08) 100%);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 3px;
+  color: #c9a84c;
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+.gl-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(201,168,76,0.25) 0%, rgba(201,168,76,0.15) 100%);
+  border-color: rgba(201, 168, 76, 0.7);
+  color: #e8c97a;
+  transform: translateY(-1px);
+}
+.gl-submit-btn:active:not(:disabled) { transform: translateY(0); }
+.gl-submit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-.btn-secondary:hover {
-  background: linear-gradient(145deg, #252525, #1a1a1a);
-  border-color: #444;
-  color: #ccc;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6),
-              0 0 8px rgba(255, 255, 255, 0.1);
-}
+@keyframes glFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes glSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }

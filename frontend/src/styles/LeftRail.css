@@ -1,11 +1,16 @@
+/* ── Left Rail ── */
 .left-rail {
     width: 50px;
-    background-color: transparent;
+    background: transparent;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 20px 0;
+    z-index: 100;
+    position: relative;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    overflow: visible; /* FIX: was 'hidden' — clipped the tooltip labels */
 }
 
 .left-rail-content {
@@ -14,101 +19,394 @@
     gap: 25px;
     width: 100%;
     align-items: center;
-}
-
-.left-rail-button {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    border: none;
-    background-color: #16213e;
-    color: #ffffff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    position: relative;
-}
-
-.left-rail-button:hover {
-    background-color: #0f3460;
-    transform: scale(1.1);
-}
-
-.button-label {
-    position: absolute;
-    left: 55px;
-    background-color: #0f3460;
-    color: #ffffff;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transform: translateX(-10px);
-    transition: opacity 0s, transform 0.2s ease;
-    z-index: 1000;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.left-rail-button:hover .button-label,
-.leave-game-button:hover .button-label {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-.dice-button:hover {
-    background-color: #533483;
-}
-
-.dice-button:hover .button-label {
-    background-color: #533483;
-}
-
-.insert-card-button:hover {
-    background-color: #16537e;
-}
-
-.insert-card-button:hover .button-label {
-    background-color: #16537e;
-}
-
-.untap-all-button:hover {
-    background-color: #4a7c59;
-}
-
-.untap-all-button:hover .button-label {
-    background-color: #4a7c59;
-}
-
-.leave-game-button {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    border: none;
-    background-color: #c1121f;
-    color: #ffffff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    margin-top: auto;
-    position: relative;
-}
-
-.leave-game-button:hover {
-    background-color: #9a0007;
-    transform: scale(1.1);
-}
-
-.leave-game-button:hover .button-label {
-    background-color: #9a0007;
+    overflow: visible; /* FIX: ensure tooltips aren't clipped here either */
 }
 
 .left-rail-button-wrapper {
     position: relative;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px;
+    overflow: visible; /* FIX: same */
+}
+
+/* ── Buttons ── */
+.left-rail-button,
+.leave-game-button {
+    width: 36px;
+    height: 36px;
+    border-radius: 2px;
+    border: 1px solid rgba(201, 168, 76, 0.3);
+    background: #0d0d14;
+    color: rgba(201, 168, 76, 0.75);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s ease;
+    position: relative;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    overflow: visible; /* FIX: allow label to escape button bounds */
+}
+
+.left-rail-button:hover {
+    background: rgba(201, 168, 76, 0.1);
+    border-color: rgba(201, 168, 76, 0.6);
+    color: #f0d68a;
+    box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+    transform: scale(1.05);
+}
+
+/* ── Tooltip Labels ── */
+.button-label {
+    position: absolute;
+    left: 46px;
+    top: 50%;
+    transform: translateY(-50%) translateX(-6px);
+    background: #0d0d14;
+    border: 1px solid rgba(201, 168, 76, 0.35);
+    color: rgba(201, 168, 76, 0.9);
+    padding: 5px 10px;
+    border-radius: 2px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.left-rail-button:hover .button-label,
+.leave-game-button:hover .button-label {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* ── Leave Button ── */
+.leave-game-button {
+    width: 36px;
+    height: 36px;
+    border-radius: 2px;
+    border: 1px solid rgba(160, 56, 10, 0.4);
+    background: #0d0d14;
+    color: rgba(201, 100, 60, 0.75);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s ease;
+    position: relative;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    overflow: visible;
+    margin-top: auto;
+}
+
+.leave-game-button:hover {
+    background: rgba(160, 56, 10, 0.15);
+    border-color: rgba(160, 56, 10, 0.7);
+    color: #e07050;
+    box-shadow: 0 0 12px rgba(160, 56, 10, 0.25);
+    transform: scale(1.05);
+}
+
+/* ── Custom Dice ── */
+.custom-dice-wrapper {
+    display: flex;
+    gap: 4px;
+    padding: 6px 10px;
+    border-top: 1px solid rgba(201, 168, 76, 0.12);
+}
+
+.custom-dice-input {
+    width: 64px;
+    background: rgba(201, 168, 76, 0.05);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 2px;
+    color: rgba(201, 168, 76, 0.9);
+    font-family: 'Cinzel', serif;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    padding: 4px 6px;
+    text-align: center;
+    transition: border-color 0.18s, background 0.18s;
+}
+
+.custom-dice-input:focus {
+    outline: none;
+    border-color: rgba(201, 168, 76, 0.5);
+    background: rgba(201, 168, 76, 0.08);
+}
+
+.custom-dice-input::placeholder {
+    color: rgba(201, 168, 76, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* hide number input arrows */
+.custom-dice-input::-webkit-outer-spin-button,
+.custom-dice-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.custom-dice-input[type=number] { -moz-appearance: textfield; }
+
+.custom-dice-roll-btn {
+    background: none;
+    border: 1px solid rgba(201, 168, 76, 0.3);
+    border-radius: 2px;
+    color: rgba(201, 168, 76, 0.8);
+    font-family: 'Cinzel', serif;
+    font-size: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 4px 7px;
+    transition: all 0.15s ease;
+}
+
+.custom-dice-roll-btn:hover:not(:disabled) {
+    background: rgba(201, 168, 76, 0.12);
+    border-color: rgba(201, 168, 76, 0.6);
+    color: #f0d68a;
+}
+
+.custom-dice-roll-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ── Search Card Modal ── */
+.search-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.search-modal-content {
+    background: #0d0d14;
+    border: 1px solid rgba(201, 168, 76, 0.4);
+    border-radius: 2px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(0, 0, 0, 0.6);
+    width: 480px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    font-family: 'Cinzel', serif;
+}
+
+.search-modal-title {
+    margin: 0;
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.2);
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(201, 168, 76, 0.85);
+}
+
+.search-modal-close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: rgba(201, 168, 76, 0.5);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.search-modal-close:hover {
+    color: #f0d68a;
+}
+
+.search-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.search-bar {
+    display: flex;
+    gap: 6px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+}
+
+.search-input {
+    flex: 1;
+    background: rgba(201, 168, 76, 0.05);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 2px;
+    color: rgba(201, 168, 76, 0.9);
+    font-family: 'Cinzel', serif;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    transition: border-color 0.18s, background 0.18s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: rgba(201, 168, 76, 0.5);
+    background: rgba(201, 168, 76, 0.08);
+}
+
+.search-input::placeholder {
+    color: rgba(201, 168, 76, 0.3);
+}
+
+.search-button {
+    background: none;
+    border: 1px solid rgba(201, 168, 76, 0.35);
+    border-radius: 2px;
+    color: rgba(201, 168, 76, 0.85);
+    font-family: 'Cinzel', serif;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.search-button:hover:not(:disabled) {
+    background: rgba(201, 168, 76, 0.12);
+    border-color: rgba(201, 168, 76, 0.6);
+    color: #f0d68a;
+}
+
+.search-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.search-results {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.search-results::-webkit-scrollbar { width: 6px; }
+.search-results::-webkit-scrollbar-track { background: rgba(201, 168, 76, 0.04); }
+.search-results::-webkit-scrollbar-thumb { background: rgba(201, 168, 76, 0.25); border-radius: 2px; }
+.search-results::-webkit-scrollbar-thumb:hover { background: rgba(201, 168, 76, 0.45); }
+
+.card-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.08);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.card-item:hover {
+    background: rgba(201, 168, 76, 0.07);
+    box-shadow: inset 2px 0 0 rgba(201, 168, 76, 0.5);
+}
+
+.card-image {
+    width: 36px;
+    height: 50px;
+    object-fit: cover;
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.card-name {
+    margin: 0;
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(201, 168, 76, 0.9);
+}
+
+.card-price {
+    margin: 0;
+    font-family: 'Cinzel', serif;
+    font-size: 0.52rem;
+    letter-spacing: 0.1em;
+    color: rgba(201, 168, 76, 0.45);
+}
+
+.chat-button.active {
+    background: rgba(201, 168, 76, 0.12);
+    border-color: rgba(201, 168, 76, 0.7);
+    color: #f0d68a;
+    box-shadow: 0 0 12px rgba(201, 168, 76, 0.25);
+}
+
+.left-rail--collapsed {
+    width: 1px;
+    min-width: 1px;
+    overflow: hidden;
+    opacity: 0;
+    border: none;
+}
+
+/* ── Toggle button ── */
+.left-rail-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 2px;
+    border: 1px solid rgba(201, 168, 76, 0.3);
+    background: #0d0d14;
+    color: rgba(201, 168, 76, 0.75);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    line-height: 1;
+    transition: all 0.18s ease;
+    flex-shrink: 0;
+}
+
+.left-rail-toggle:hover {
+    background: rgba(201, 168, 76, 0.1);
+    border-color: rgba(201, 168, 76, 0.6);
+    color: #f0d68a;
+}
+
+.left-rail--collapsed .left-rail-toggle {
+    width: 10px;
+    height: 22px;
+    border-radius: 0 2px 2px 0;
+    font-size: 9px;
+    padding: 0;
 }

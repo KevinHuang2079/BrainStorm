@@ -1,10 +1,11 @@
+/* ── Zone Viewing Modal ── */
 .zone-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(0, 0, 0, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12,140 +13,212 @@
 }
 
 .zone-modal-content {
-  background-color: #1a1a1a;
-  border: 2px solid #444;
-  border-radius: 8px;
-  padding: 2%;
+  background: #0d0d14;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 2px;
+  padding: 0;
   width: 90%;
   max-width: 1200px;
   height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(0, 0, 0, 0.6);
 }
 
+/* ── Header ── */
 .zone-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2%;
-  border-bottom: 2px solid #333;
-  padding-bottom: 1.5%;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.2);
 }
 
 .zone-modal-header h2 {
   margin: 0;
-  color: #fff;
-  font-size: 1.5em;
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.85);
 }
 
 .zone-modal-close-btn {
   background: none;
   border: none;
-  color: #999;
-  font-size: 1.5em;
+  color: rgba(201, 168, 76, 0.5);
+  font-size: 14px;
   cursor: pointer;
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: color 0.2s;
+  font-family: 'Cinzel', serif;
 }
 
 .zone-modal-close-btn:hover {
-  color: #fff;
+  color: #f0d68a;
 }
 
+/* ── Controls ── */
 .zone-modal-controls {
   display: flex;
-  gap: 2%;
-  margin-bottom: 2%;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.12);
 }
 
 .zone-search-input {
   flex: 1;
-  padding: 0.75% 1.5%;
-  background-color: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #ccc;
-  font-size: 0.95em;
-  transition: border-color 0.2s;
+  padding: 6px 12px;
+  background: rgba(201, 168, 76, 0.05);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  border-radius: 2px;
+  color: rgba(201, 168, 76, 0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: border-color 0.2s, background 0.2s;
 }
 
 .zone-search-input:focus {
   outline: none;
-  border-color: #666;
-  background-color: #333;
+  border-color: rgba(201, 168, 76, 0.5);
+  background: rgba(201, 168, 76, 0.08);
 }
 
 .zone-search-input::placeholder {
-  color: #666;
+  color: rgba(201, 168, 76, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 .zone-type-filter {
-  padding: 0.75% 1.5%;
-  background-color: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #ccc;
-  font-size: 0.95em;
+  padding: 6px 12px;
+  background: rgba(201, 168, 76, 0.05);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  border-radius: 2px;
+  color: rgba(201, 168, 76, 0.9);
+  font-family: 'Cinzel', serif;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.2s;
   min-width: 150px;
 }
 
 .zone-type-filter:focus {
   outline: none;
-  border-color: #666;
-  background-color: #333;
+  border-color: rgba(201, 168, 76, 0.5);
+  background: rgba(201, 168, 76, 0.08);
 }
 
 .zone-type-filter option {
-  background-color: #2a2a2a;
-  color: #ccc;
+  background: #0d0d14;
+  color: rgba(201, 168, 76, 0.9);
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.1em;
 }
 
+/* ── Card Grid ── */
 .zone-modal-cards {
   flex: 1;
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1.5%;
-  padding: 1%;
-  align-content: start; 
+  gap: 12px;
+  padding: 16px;
+  align-content: start;
 }
 
+/* Scrollbar styling */
+.zone-modal-cards::-webkit-scrollbar {
+  width: 6px;
+}
+
+.zone-modal-cards::-webkit-scrollbar-track {
+  background: rgba(201, 168, 76, 0.04);
+}
+
+.zone-modal-cards::-webkit-scrollbar-thumb {
+  background: rgba(201, 168, 76, 0.25);
+  border-radius: 2px;
+}
+
+.zone-modal-cards::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 168, 76, 0.45);
+}
+
+/* ── Card Items ── */
 .zone-card-item {
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 2px;
   overflow: hidden;
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
   aspect-ratio: 5 / 7;
   width: 100%;
 }
 
 .zone-card-item:hover {
   transform: scale(1.05);
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.3);
 }
 
 .zone-card-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border: 1px solid #444;
-  border-radius: 4px;
-  display: block; 
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 2px;
+  display: block;
 }
 
+/* ── Empty State ── */
 .zone-modal-empty {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
-  font-size: 1.1em;
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.3);
   height: 300px;
+}
+
+/* Add these rules to your existing ZoneViewingModal.css */
+
+/* "view only" badge next to the zone name */
+.zone-modal-readonly-badge {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 1px 7px;
+    vertical-align: middle;
+    letter-spacing: 0.03em;
+}
+
+.zone-card-item--readonly {
+    cursor: default !important;
+    pointer-events: none; 
+}
+.zone-card-item--readonly img {
+    pointer-events: auto;
+    cursor: default;
 }

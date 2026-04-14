@@ -1,0 +1,187 @@
+.opponent-area {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 100;
+    display: inline-flex;
+    flex-direction: column;
+    background: rgba(8,8,15,0.45);
+    border: 1px solid rgba(201,168,76,0.12);
+    border-radius: 2px;
+    overflow: visible;
+    min-width: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.opponent-area::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 7px;
+    height: 7px;
+    border-top: 1px solid rgba(201,168,76,0.25);
+    border-left: 1px solid rgba(201,168,76,0.25);
+    pointer-events: none;
+}
+
+.opp-info {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 7px;
+    border-bottom: 1px solid rgba(201,168,76,0.06);
+}
+
+.opp-info:last-child {
+    border-bottom: none;
+}
+
+.opp-username {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.07em;
+    color: rgba(201,168,76,0.5);
+    white-space: nowrap;
+    text-transform: uppercase;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.opp-life-box {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: rgba(201,168,76,0.03);
+    border: 1px solid rgba(201,168,76,0.1);
+    border-radius: 2px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+}
+
+.opp-life-icon {
+    font-size: 8px;
+    color: rgba(160,56,10,0.7);
+    line-height: 1;
+}
+
+.opp-life-val {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(201,168,76,0.8);
+    line-height: 1;
+}
+
+.opp-zones-anchor {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.opp-zones-btn {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: rgba(201,168,76,0.03);
+    border: 1px solid rgba(201,168,76,0.1);
+    border-radius: 2px;
+    padding: 2px 6px;
+    cursor: pointer;
+    color: rgba(201,168,76,0.3);
+    font-family: 'Cinzel', serif;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.opp-zones-btn:hover {
+    background: rgba(201,168,76,0.08);
+    border-color: rgba(201,168,76,0.28);
+    color: rgba(201,168,76,0.75);
+}
+
+.opp-zones-grid-icon {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.opp-zones-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 299;
+}
+
+.opp-zones-popover {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    background: rgba(8,8,15,0.88);
+    border: 1px solid rgba(201,168,76,0.18);
+    border-radius: 2px;
+    padding: 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    z-index: 300;
+    min-width: 140px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.opp-zones-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    color: rgba(201,168,76,0.5);
+    font-family: 'Crimson Text', serif;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s, color 0.1s;
+}
+
+.opp-zones-row:hover {
+    background: rgba(201,168,76,0.06);
+    color: rgba(232,201,122,0.8);
+}
+
+.opp-zones-count {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    color: rgba(201,168,76,0.32);
+    background: rgba(201,168,76,0.05);
+    border-radius: 2px;
+    padding: 0 4px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.opp-badge {
+    font-family: 'Cinzel', serif;
+    font-size: 8px;
+    letter-spacing: 0.04em;
+    color: rgba(201,168,76,0.45);
+    background: rgba(201,168,76,0.04);
+    border: 1px solid rgba(201,168,76,0.09);
+    border-radius: 2px;
+    padding: 1px 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}

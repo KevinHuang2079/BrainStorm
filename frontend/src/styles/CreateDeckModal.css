@@ -1,126 +1,169 @@
 /* CreateDeckModal.css */
 
-.deck-modal-overlay {
+/* ── Overlay ── */
+.cdm-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  inset: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
+  background: rgba(8, 8, 15, 0.80);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: cdmFadeIn 0.18s ease both;
 }
 
-.deck-modal-content {
-  background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-  border: 2px solid #333;
-  border-radius: 12px;
-  padding: 32px;
+/* ── Panel ── */
+.cdm-panel {
   width: 90%;
-  max-width: 450px;
+  max-width: 400px;
+  background: linear-gradient(145deg, #12121f 0%, #0a0a14 100%);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 4px;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(201, 168, 76, 0.12);
   position: relative;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  overflow: hidden;
+  animation: cdmSlideUp 0.22s ease both;
 }
 
-.deck-modal-close {
+/* corner accents */
+.cdm-panel::before,
+.cdm-panel::after {
+  content: '';
   position: absolute;
-  top: 16px;
-  right: 16px;
-  background: transparent;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(201, 168, 76, 0.35);
+  border-style: solid;
+}
+.cdm-panel::before { top: 8px; left: 8px;  border-width: 1px 0 0 1px; }
+.cdm-panel::after  { bottom: 8px; right: 8px; border-width: 0 1px 1px 0; }
+
+/* ── Header ── */
+.cdm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 0;
+}
+
+.cdm-eyebrow {
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #c9a84c;
+  opacity: 0.85;
+}
+
+.cdm-close {
+  background: none;
   border: none;
-  color: #888;
-  font-size: 24px;
+  color: rgba(201, 168, 76, 0.4);
+  font-size: 16px;
   cursor: pointer;
-  padding: 4px 8px;
-  transition: all 0.2s;
+  padding: 2px 6px;
   line-height: 1;
+  transition: color 0.2s;
+}
+.cdm-close:hover { color: #c9a84c; }
+
+/* ── Body ── */
+.cdm-body {
+  padding: 20px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.deck-modal-close:hover {
-  color: #fff;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
-  transform: scale(1.1);
+.cdm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.deck-modal-title {
-  color: #fff;
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 24px 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5),
-               0 0 20px rgba(255, 255, 255, 0.2);
-  letter-spacing: 0.5px;
+.cdm-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.55);
 }
 
-.deck-modal-input,
-.deck-modal-select {
+.cdm-input,
+.cdm-select {
   width: 100%;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  background: #0a0a0a;
-  border: 2px solid #333;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 16px;
-  transition: all 0.3s;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  padding: 10px 12px;
+  background: rgba(8, 8, 15, 0.7);
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  border-radius: 3px;
+  color: #e8d9b0;
+  font-family: 'Crimson Text', serif;
+  font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 
-.deck-modal-input:focus,
-.deck-modal-select:focus {
+.cdm-input::placeholder { color: rgba(201, 168, 76, 0.2); }
+
+.cdm-input:focus,
+.cdm-select:focus {
   outline: none;
-  border-color: #666;
-  background: #111;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5),
-              0 0 12px rgba(255, 255, 255, 0.15);
+  border-color: rgba(201, 168, 76, 0.5);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.08);
 }
 
-.deck-modal-input::placeholder {
-  color: #555;
-}
+.cdm-select { cursor: pointer; }
+.cdm-select option { background: #0e0e1a; color: #e8d9b0; }
 
-.deck-modal-select {
+/* ── Create button ── */
+.cdm-create-btn {
+  display: block;
+  width: calc(100% - 40px);
+  margin: 20px 20px;
+  padding: 11px;
+  background: linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.08) 100%);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 3px;
+  color: #c9a84c;
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
   cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
 }
 
-.deck-modal-select option {
-  background: #1a1a1a;
-  color: #fff;
+.cdm-create-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(201,168,76,0.25) 0%, rgba(201,168,76,0.15) 100%);
+  border-color: rgba(201, 168, 76, 0.7);
+  color: #e8c97a;
+  transform: translateY(-1px);
 }
 
-.deck-modal-button {
-  width: 100%;
-  padding: 14px 24px;
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-  border: 2px solid #444;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+.cdm-create-btn:active:not(:disabled) { transform: translateY(0); }
+
+.cdm-create-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
-.deck-modal-button:hover {
-  background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
-  border-color: #666;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7),
-              0 0 16px rgba(255, 255, 255, 0.2),
-              0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8),
-               0 0 12px rgba(255, 255, 255, 0.4);
+/* ── Animations ── */
+@keyframes cdmFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cdmSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+
+.cdm-input--error {
+  border-color: rgba(220, 80, 80, 0.6);
+  box-shadow: 0 0 0 2px rgba(220, 80, 80, 0.08);
 }
 
-.deck-modal-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6),
-              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+.cdm-error-hint {
+  font-family: 'Crimson Text', serif;
+  font-size: 13px;
+  color: rgba(220, 100, 100, 0.85);
+  margin-top: 2px;
 }

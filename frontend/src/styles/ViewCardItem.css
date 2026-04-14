@@ -1,7 +1,10 @@
 .view-card-container {
-  position: relative;
-  display: block;
+  position: relative; 
   pointer-events: auto;
+  width: 100%;
+  height: 100%;
+  overflow: visible;  
+  cursor: pointer;
 }
 
 .view-card-preview {

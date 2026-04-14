@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import '../styles/ViewCardItem.css';
-
+//todo, modify where its rendered (parents) so that it disappears on a click
+//double-faced card (callous sell-sword // burn together) doesn't work (look at edge cases/nested images?)
 const ViewCardItem = ({ card, children, onCardClick, style, className, isDragging }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });

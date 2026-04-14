@@ -1,0 +1,107 @@
+/* ── Chat Log Panel ── */
+.chat-log-panel {
+    position: absolute;
+    left: 58px;
+    bottom: 0;
+    width: 280px;
+    max-height: 60vh;
+    background: #0d0d14;
+    border: 1px solid rgba(201, 168, 76, 0.35);
+    border-radius: 2px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    z-index: 999;
+    font-family: 'Cinzel', serif;
+}
+
+/* ── Header ── */
+.chat-log-header {
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.18);
+    flex-shrink: 0;
+}
+
+.chat-log-title {
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(201, 168, 76, 0.8);
+}
+
+/* ── Body ── */
+.chat-log-body {
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px 0;
+}
+
+.chat-log-body::-webkit-scrollbar { width: 4px; }
+.chat-log-body::-webkit-scrollbar-track { background: rgba(201, 168, 76, 0.03); }
+.chat-log-body::-webkit-scrollbar-thumb { background: rgba(201, 168, 76, 0.2); border-radius: 2px; }
+.chat-log-body::-webkit-scrollbar-thumb:hover { background: rgba(201, 168, 76, 0.4); }
+
+/* ── Empty state ── */
+.chat-log-empty {
+    margin: 0;
+    padding: 12px 14px;
+    font-size: 0.52rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(201, 168, 76, 0.28);
+    text-align: center;
+}
+
+/* ── Turn Divider ── */
+.chat-log-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px 6px;
+}
+
+.chat-log-divider-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(201, 168, 76, 0.2);
+}
+
+.chat-log-divider-label {
+    font-size: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(201, 168, 76, 0.5);
+    white-space: nowrap;
+}
+
+/* ── Action Entry ── */
+.chat-log-entry {
+    padding: 3px 14px;
+    line-height: 1.5;
+}
+
+.chat-log-username {
+    font-size: 0.52rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(201, 168, 76, 0.85);
+}
+
+.chat-log-action {
+    font-size: 0.52rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: rgba(201, 168, 76, 0.5);
+    font-family: 'Crimson Text', serif;
+    font-style: italic;
+}
+.chat-log-count {
+    font-size: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: rgba(201, 168, 76, 0.4);
+    font-family: 'Cinzel', serif;
+}

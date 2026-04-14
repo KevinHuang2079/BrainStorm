@@ -1,13 +1,21 @@
+import '../styles/GameRoomPage.css';
+
 import { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/auth';
 import { useWebSocket } from '../contexts/webSocket';
-import '../styles/GameRoomPage.css';
-import PlayerArea from '../components/PlayerArea';
-import BattleField from '../components/BattleField';
 import { CardActionsProvider } from '../contexts/cardActions';
-import LeftRail from '../components/LeftRail';
+
+import PlayerArea from '../components/InGame/PlayerArea';
+import BattleField from '../components/InGame/BattleField';
+import OpponentArea from '../components/InGame/OpponentArea';
+
+
+import LeftRail from '../components/InGame/LeftRail';
+import ChatLog from '../components/InGame/ChatLog';
 import cardBack from '../imgs/magic-card-backballs.png';
+
+
 
 const GameRoomPage = () => {
     const { gameId } = useParams(); 
@@ -19,7 +27,6 @@ const GameRoomPage = () => {
     const messagesEndRef = useRef(null);
 
     const [playerStates, setPlayerStates] = useState({});
-    const autoSaveIntervalRef = useRef(null);
     const syncTimeoutRef = useRef(null);
 
     const [showInactivityWarning, setShowInactivityWarning] = useState(false);
@@ -30,6 +37,14 @@ const GameRoomPage = () => {
 
     const roundTripTimers = useRef({});
 
+    const [chatLog, setChatLog] = useState([]);
+    const [showChat, setShowChat] = useState(false);
+    const currentTurnNumberRef = useRef(0);
+
+    const [railOpen, setRailOpen] = useState(true);
+
+    
+    
     useEffect(() => {
         console.log('playerStates', playerStates);
     })
@@ -58,17 +73,24 @@ const GameRoomPage = () => {
 
     const stripPlayerStateForStorage = useCallback((playerState) => {
         if (!playerState || typeof playerState !== 'object') return playerState;
-        
+
         const zones = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'facedown', 'sideboard'];
         const stripped = { ...playerState };
-        
+
         for (const zone of zones) {
             if (stripped[zone]) {
                 stripped[zone] = stripCardArrayForStorage(stripped[zone]);
             }
         }
-        
-        return stripped;
+
+        // Explicitly carry non-zone fields through
+        return {
+            ...stripped,
+            lifeTotal: playerState.lifeTotal,
+            customCounters: playerState.customCounters,
+            poisonCounters: playerState.poisonCounters,
+            commanderDamage: playerState.commanderDamage,
+        };
     }, [stripCardArrayForStorage]);
 
     const scrollToBottom = () => {
@@ -89,7 +111,6 @@ const GameRoomPage = () => {
             game.players.forEach(player => {
                 if (!updatedStates[player._id]) {
                     hasChanges = true;
-                    const isConnected = game.connectedPlayers?.some(cp => cp._id === player._id) || false;
                     const startingLife = game.format === 'commander' ? 40 : 20;
                     updatedStates[player._id] = {
                         _id: player._id,
@@ -102,7 +123,6 @@ const GameRoomPage = () => {
                         facedown: [],
                         sideboard: [],
                         lifeTotal: startingLife,
-                        isDisconnected: !isConnected
                     };
                 }
             });
@@ -152,7 +172,30 @@ const GameRoomPage = () => {
                     };
                     break;
                 }
+                case 'changeCounter': {
+                    const { counterType, amount } = data;
 
+                    if (counterType.startsWith('custom_new:')) {
+                        const name = counterType.replace('custom_new:', '');
+                        const existing = playerState.customCounters || [];
+                        updated[playerId] = {
+                            ...playerState,
+                            customCounters: [...existing, { name, value: 0 }]
+                        };
+                    } else if (counterType.startsWith('custom_')) {
+                        const idx = parseInt(counterType.replace('custom_', ''), 10);
+                        const newCustom = (playerState.customCounters || []).map((c, i) =>
+                            i === idx ? { ...c, value: Math.max(0, c.value + amount) } : c
+                        );
+                        updated[playerId] = { ...playerState, customCounters: newCustom };
+                    } else {
+                        updated[playerId] = {
+                            ...playerState,
+                            [counterType]: Math.max(0, (playerState[counterType] ?? 0) + amount)
+                        };
+                    }
+                    break;
+                }
                 case 'loadDeck':
                     updated[playerId] = {
                         ...playerState,
@@ -426,6 +469,51 @@ const GameRoomPage = () => {
                     }, 200);
                     break;
                 }
+                case 'shakeOpponentCard': {
+                    const { cardId, targetPlayerId } = data;
+                    const targetState = updated[targetPlayerId];
+                    if (!targetState) break;
+
+                    const newBattlefield = targetState.battlefield.map(card =>
+                        card._id === cardId ? { ...card, isShaking: true } : card
+                    );
+                    updated[targetPlayerId] = { ...targetState, battlefield: newBattlefield };
+
+                    setTimeout(() => {
+                        setPlayerStates(prev => {
+                            const reset = { ...prev };
+                            if (!reset[targetPlayerId]) return prev;
+                            reset[targetPlayerId] = {
+                                ...reset[targetPlayerId],
+                                battlefield: reset[targetPlayerId].battlefield.map(card =>
+                                    card._id === cardId ? { ...card, isShaking: false } : card
+                                )
+                            };
+                            return reset;
+                        });
+                    }, 200);
+                    break;
+                }
+
+                case 'cloneOpponentCard': {
+                    //clone onto this users battlefield
+                    const actingPlayerId = playerId; // the player who triggered the action
+                    const actingState = updated[actingPlayerId];
+                    if (!actingState) break;
+
+                    const clonedCard = {
+                        ...data.card,
+                        _id: data.cloneId,
+                        isClone: true,
+                        position: data.position || { x: 20, y: 20 },
+                        zIndex: data.zIndex || (actingState.battlefield?.length || 0) + 1
+                    };
+                    updated[actingPlayerId] = {
+                        ...actingState,
+                        battlefield: [...(actingState.battlefield || []), clonedCard]
+                    };
+                    break;
+                }
 
                 case 'addCounter': {
                     const { cardId } = data;
@@ -470,7 +558,7 @@ const GameRoomPage = () => {
                     const newBattlefield = playerState.battlefield.map(card => {
                         if (card._id === cardId && card.counters) {
                             const newCounters = [...card.counters];
-                            newCounters[counterIndex] = (newCounters[counterIndex] || 1) + 1;
+                            newCounters[counterIndex] = (newCounters[counterIndex] ?? 1) + (data.delta ?? 1);
                             return { ...card, counters: newCounters };
                         }
                         return card;
@@ -531,14 +619,29 @@ const GameRoomPage = () => {
         });
     }, [game?.format, shuffleArray]);
 
+    //
+    const handleLocalActionRef = useRef(handleLocalAction);
     useEffect(() => {
-        if (!socket || !gameId) return;
-        
-        const joinStart = Date.now();
-        socket.emit('game:join', { gameId });
-        roundTripTimers.current['game:join'] = joinStart;
+        handleLocalActionRef.current = handleLocalAction;
+    }, [handleLocalAction]);
 
+    // -- socket handling -- 
+    useEffect(() => {
+        //temp
+        console.log('[GAME EFFECT] fired', { 
+            hasSocket: !!socket, 
+            socketConnected: socket?.connected,
+            gameId 
+        });
+
+        if (!socket || !gameId ) return;
+        //Register ALL listeners FIRST, before any emit
         const handleGameJoined = (gameData) => {
+            console.log('[REJOIN] game:joined received');
+            console.log('[REJOIN] savedState from server:', gameData.savedState);
+            console.log('[REJOIN] my userId:', user._id);
+            console.log('[REJOIN] my savedState entry:', gameData.savedState?.[user._id]);
+            console.log('[REJOIN] players in game:', gameData.players.map(p => p._id));
             const joinDuration = Date.now() - roundTripTimers.current['game:join'];
             console.log(`[CLIENT PERF] game:join round-trip: ${joinDuration}ms`);
             delete roundTripTimers.current['game:join'];
@@ -546,13 +649,22 @@ const GameRoomPage = () => {
             const processStart = Date.now();
             setGame(gameData);
 
+            //restore player states
             setPlayerStates(prev => {
                 const updated = { ...prev };
-                
+
                 gameData.players.forEach(player => {
-                    const isConnected = gameData.connectedPlayers?.some(cp => cp._id === player._id) || false;
-                    
-                    if (!updated[player._id]) {
+                    const saved = gameData.savedState?.[player._id];
+                    if (saved) {
+                        // Spread ALL saved fields, not just zones
+                        updated[player._id] = {
+                            ...updated[player._id],  // keep anything already in state
+                            ...saved,                // restore everything from DB
+                            _id: player._id,
+                            username: player.username,
+                        };
+                    } else if (!updated[player._id]) {
+                        const startingLife = gameData.format === 'commander' ? 40 : 20;
                         updated[player._id] = {
                             _id: player._id,
                             username: player.username,
@@ -563,31 +675,25 @@ const GameRoomPage = () => {
                             exile: [],
                             facedown: [],
                             sideboard: [],
-                            isDisconnected: !isConnected
+                            lifeTotal: startingLife,
                         };
-                    } else {
-                        updated[player._id].isDisconnected = !isConnected;
                     }
                 });
-
-                if (gameData.savedState) {
-                    Object.keys(gameData.savedState).forEach(playerId => {
-                        if (updated[playerId]) {
-                            const savedPlayerState = gameData.savedState[playerId];
-                            updated[playerId] = {
-                                ...updated[playerId],
-                                library: savedPlayerState.library || [],
-                                hand: savedPlayerState.hand || [],
-                                battlefield: savedPlayerState.battlefield || [],
-                                graveyard: savedPlayerState.graveyard || [],
-                                exile: savedPlayerState.exile || [],
-                                facedown: savedPlayerState.facedown || [],
-                                sideboard: savedPlayerState.sideboard || [],
-                                isDisconnected: updated[playerId].isDisconnected
-                            };
-                        }
-                    });
+                //restore chat logs
+                const savedLog = gameData.savedState?.['_chatLog'];
+                if (savedLog && Array.isArray(savedLog)) {
+                    setChatLog(savedLog);
                 }
+
+                // immediately broadcast this user's state after state is resolved, so other players can see you
+                const myState = updated[user._id];
+                if (myState) {
+                    socket.emit('game:syncState', {
+                        gameId,
+                        gameState: { [user._id]: myState }
+                    });
+                }   
+
 
                 return updated;
             });
@@ -602,59 +708,88 @@ const GameRoomPage = () => {
 
         const handlePlayerLeft = ({ game: updatedGame, playerId, username }) => {
             setGame(updatedGame);
-            
             setPlayerStates(prev => {
                 const updated = { ...prev };
-                delete updated[playerId];
+                const key = Object.keys(updated).find(k => k.toString() === playerId.toString());
+                if (key) delete updated[key];
                 return updated;
             });
         };
 
-        const handlePlayerDisconnected = ({ game: updatedGame, playerId, username }) => {
+        const handlePlayerDisconnected = ({ game: updatedGame, playerId, savedState }) => {
             setGame(updatedGame);
             
             setPlayerStates(prev => ({
                 ...prev,
                 [playerId]: {
-                    ...prev[playerId],
-                    isDisconnected: true
+                    ...savedState, //use server stored state
                 }
             }));
         };
 
-        const handleRequestSync = ({ reason, playerId, username }) => {
-            clearTimeout(syncTimeoutRef.current);
-            syncTimeoutRef.current = setTimeout(() => {
-                setPlayerStates(currentStates => {
-                    socket.emit('game:syncState', {
-                        gameId,
-                        gameState: currentStates
-                    });
-                    return currentStates; 
+        const handleRequestSync = () => { //user gives its current state
+            setPlayerStates(currentStates => {
+                socket.emit('game:syncState', {
+                    gameId,
+                    // only send your own state, not your view of others
+                    gameState: { [user._id]: currentStates[user._id] }
                 });
-            }, 100);
+                return currentStates;
+            });
         };
         
-        const handleStateUpdate = ({ gameState, senderId, senderUsername }) => {
-            const processStart = Date.now();
+        const handleStateUpdate = ({ gameState, senderId }) => { //user recieves db's current state about them
             setPlayerStates(prev => {
                 const updated = { ...prev };
-                
-                Object.keys(gameState).forEach(playerId => {
-                    if (playerId !== user._id && playerId !== user._id.toString()) {
-                        updated[playerId] = gameState[playerId];
-                    }
-                });
-                
+                // only accept a player's update about themselves
+                if (senderId !== user._id && gameState[senderId]) {
+                    updated[senderId] = gameState[senderId];
+                }
                 return updated;
             });
-            const processDuration = Date.now() - processStart;
-            console.log(`[CLIENT PERF] stateUpdate processing: ${processDuration}ms`);
         };
+
+        // const handleStateUpdate = ({ gameState, senderId }) => {
+        //     setPlayerStates(prev => {
+        //         if (senderId === user._id || !gameState[senderId]) return prev;
+                
+        //         const incomingState = gameState[senderId];
+        //         return {
+        //             ...prev,
+        //             [senderId]: {
+        //                 ...incomingState,
+        //                 // Force new array references for all zones so memoized components re-render
+        //                 //before it was 
+        //                 library:     [...(incomingState.library     || [])],
+        //                 hand:        [...(incomingState.hand        || [])],
+        //                 battlefield: [...(incomingState.battlefield || [])],
+        //                 graveyard:   [...(incomingState.graveyard   || [])],
+        //                 exile:       [...(incomingState.exile       || [])],
+        //                 facedown:    [...(incomingState.facedown    || [])],
+        //                 sideboard:   [...(incomingState.sideboard   || [])],
+        //             }
+        //         };
+        //     });
+        // };
 
         const handleGameActionFromSocket = (payload) => {
             const processStart = Date.now();
-            handleLocalAction(payload);
+
+            handleLocalActionRef.current(payload);
+
+            // Append to chat log (remote players only — local handled in handleGameAction)
+            if (payload.playerId !== user._id) {
+                setChatLog(prev => [...prev, {
+                    type: 'action',
+                    username: payload.username,
+                    action: payload.action,
+                    cardName: payload.data?.card?.name || null,
+                    extra: payload.data?.extra ?? null,
+                    turn: currentTurnNumberRef.current,
+                    timestamp: Date.now()
+                }]);
+            }
+
             const processDuration = Date.now() - processStart;
             console.log(`[CLIENT PERF] game:action ${payload.action} processing: ${processDuration}ms`);
         };
@@ -665,6 +800,16 @@ const GameRoomPage = () => {
                 console.log(`[CLIENT PERF] game:endTurn round-trip: ${duration}ms`);
                 delete roundTripTimers.current['game:endTurn'];
             }
+
+            currentTurnNumberRef.current += 1;
+            const newTurn = currentTurnNumberRef.current;
+
+            setChatLog(prev => [...prev, {
+                type: 'turn-divider',
+                turn: newTurn,
+                username,
+                timestamp: Date.now()
+            }]);
 
             setGame(prev => ({
                 ...prev,
@@ -679,12 +824,32 @@ const GameRoomPage = () => {
                 delete roundTripTimers.current['game:startGame'];
             }
 
+            currentTurnNumberRef.current = 1;
+
+            setChatLog([{
+                type: 'turn-divider',
+                turn: 1,
+                username: startingPlayer?.username || '',
+                timestamp: Date.now()
+            }]);
+
+            socket.emit('game:saveChatLog', { gameId, chatLog: [] });
             setGame(updatedGame);
         };
 
         const handleDiceRolled = ({ username, result, sides }) => {
             setDiceResult({ username, result, sides });
             setTimeout(() => setDiceResult(null), 3000);
+
+            setChatLog(prev => [...prev, {
+                type: 'action',
+                username,
+                action: 'rollDice',
+                cardName: null,
+                extra: { result, sides },
+                turn: currentTurnNumberRef.current,
+                timestamp: Date.now()
+            }]);
         };
 
         const handleInactivityWarning = ({ timeRemaining }) => {
@@ -712,20 +877,45 @@ const GameRoomPage = () => {
             }
             navigate('/home');
         };
+        
+        // -- listeners -- 
+        socket.on('game:joined', handleGameJoined); //this player
+        socket.on('game:playerJoined', handlePlayerJoined); //other player
+        socket.on('game:playerLeft', handlePlayerLeft); //other player leave
+        socket.on('game:playerDisconnected', handlePlayerDisconnected); //other player redirected
 
-        socket.on('game:joined', handleGameJoined);
-        socket.on('game:playerJoined', handlePlayerJoined);
-        socket.on('game:playerLeft', handlePlayerLeft);
-        socket.on('game:playerDisconnected', handlePlayerDisconnected);
-        socket.on('game:requestSync', handleRequestSync);
-        socket.on('game:stateUpdate', handleStateUpdate);
+        socket.on('game:requestSync', handleRequestSync); //backend requests sync
+        socket.on('game:stateUpdate', handleStateUpdate); //backend provides state
+         
         socket.on('game:action', handleGameActionFromSocket);
         socket.on('game:turnChanged', handleTurnChanged);
         socket.on('game:started', handleGameStarted);
         socket.on('game:diceRolled', handleDiceRolled);
         socket.on('game:inactivityWarning', handleInactivityWarning);
         socket.on('game:closedDueToInactivity', handleGameClosed);
+        
+        // const handleConnect = () => {
+        //     socket.emit('game:join', { gameId });
+        // };
+        // socket.on('connect', handleConnect);
+        // if (socket.connected) {
+        //     handleConnect();
+        // }
 
+        let hasJoined = false;
+        const handleConnect = () => {
+            if (hasJoined) return;
+            hasJoined = true;
+            roundTripTimers.current['game:join'] = Date.now();
+            socket.emit('game:join', { gameId }); //note emits buffer if socket isn't connected
+        };
+        socket.on('connect', handleConnect);
+        if (socket.connected) {
+            handleConnect();
+        }
+
+
+        // -- clean up -- 
         return () => {
             socket.off('game:joined', handleGameJoined);
             socket.off('game:playerJoined', handlePlayerJoined);
@@ -739,6 +929,7 @@ const GameRoomPage = () => {
             socket.off('game:diceRolled', handleDiceRolled);
             socket.off('game:inactivityWarning', handleInactivityWarning);
             socket.off('game:closedDueToInactivity', handleGameClosed);
+            socket.off('connect', handleConnect);
             
             if (syncTimeoutRef.current) {
                 clearTimeout(syncTimeoutRef.current);
@@ -747,22 +938,10 @@ const GameRoomPage = () => {
                 clearInterval(inactivityCountdownIntervalRef.current);
             }
         };
-    }, [socket, gameId, user._id, user.username, navigate, handleLocalAction]);
+    }, [socket, gameId, user._id, navigate]);
 
     useEffect(() => {
         if (!socket || !gameId || !playerStates[user._id]) return;
-
-        autoSaveIntervalRef.current = setInterval(() => {
-            const saveStart = Date.now();
-            const strippedState = stripPlayerStateForStorage(playerStates[user._id]);
-            socket.emit('game:saveState', {
-                gameId,
-                playerId: user._id,
-                playerState: strippedState,
-                clientTimestamp: Date.now()
-            });
-            roundTripTimers.current['game:saveState'] = saveStart;
-        }, 30000);
 
         socket.on('game:stateSaved', ({ success, timestamp }) => {
             if (roundTripTimers.current['game:saveState']) {
@@ -773,36 +952,10 @@ const GameRoomPage = () => {
         });
 
         return () => {
-            if (autoSaveIntervalRef.current) {
-                clearInterval(autoSaveIntervalRef.current);
-            }
             socket.off('game:stateSaved');
         };
-    }, [socket, gameId, playerStates, user._id, stripPlayerStateForStorage]);
-
-    useEffect(() => {
-        const saveStateBeforeUnload = () => {
-            if (socket && gameId && playerStates[user._id]) {
-                const strippedStates = {};
-                Object.keys(playerStates).forEach(playerId => {
-                    strippedStates[playerId] = stripPlayerStateForStorage(playerStates[playerId]);
-                });
-                
-                socket.emit('game:saveState', {
-                    gameId,
-                    gameState: strippedStates,
-                    clientTimestamp: Date.now()
-                });
-            }
-        };
-
-        window.addEventListener('beforeunload', saveStateBeforeUnload);
-
-        return () => {
-            saveStateBeforeUnload();
-            window.removeEventListener('beforeunload', saveStateBeforeUnload);
-        };
-    }, [socket, gameId, playerStates, user._id, stripPlayerStateForStorage]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [socket, gameId, user._id, stripPlayerStateForStorage]);
 
     const handleStartGame = useCallback(() => {
         if (socket && game && game.host._id === user._id) {
@@ -828,11 +981,12 @@ const GameRoomPage = () => {
 
     const handleGameAction = useCallback((actionData) => {
         if (!socket || !gameId) return;
-        
+        console.log('handlegameaction:', actionData);
+
         resetActivityTimer();
-        
+
         const actionStart = Date.now();
-        
+
         const actionPayload = {
             username: user.username,
             playerId: user._id,
@@ -840,18 +994,67 @@ const GameRoomPage = () => {
             data: actionData.data || actionData,
             timestamp: Date.now()
         };
-        
+
         handleLocalAction(actionPayload);
-        
+
+        const myState = playerStates[user._id];
+        let extra = null;
+        if (actionData.action === 'tapCard') {
+            const card = myState?.battlefield?.find(c => c._id === actionData.data?.cardId);
+            extra = { isTapped: card ? !card.isTapped : true };
+        } else if (actionData.action === 'toggleFaceDown') {
+            const card = myState?.battlefield?.find(c => c._id === actionData.data?.cardId);
+            extra = { isFaceDown: card ? !card.isFaceDown : true };
+        } else if (actionData.action === 'changeLifeTotal') {
+            const current = myState?.lifeTotal ?? (game?.format === 'commander' ? 40 : 20);
+            extra = { from: current, to: current + (actionData.data?.amount ?? 0) };
+        } else if (actionData.action === 'changeCounter') {
+            const { counterType, amount } = actionData.data || {};
+            const current = myState?.[counterType] ?? 0;
+            extra = { counterType, from: current, to: current + (amount ?? 0) };
+        } else if (actionData.action === 'drawCard') {
+            extra = { count: actionData.data?.cards?.length ?? 1 };
+        } else if (actionData.action === 'mulligan') {
+            extra = { count: actionData.data?.count };
+        }
+
+        setChatLog(prev => [...prev, {
+            type: 'action',
+            username: user.username,
+            action: actionData.action,
+            cardName: actionData.data?.card?.name || null,
+            extra,
+            turn: currentTurnNumberRef.current,
+            timestamp: Date.now()
+        }]);
+
         socket.emit('game:action', {
             gameId: game._id,
             action: actionData.action,
             data: actionData.data || actionData
         });
 
+        setPlayerStates(current => {
+            const stripped = stripPlayerStateForStorage(current[user._id]);
+            socket.emit('game:saveState', {
+                gameId,
+                playerId: user._id,
+                playerState: stripped,
+                clientTimestamp: Date.now()
+            });
+            return current;
+        });
+        setChatLog(current => {
+            socket.emit('game:saveChatLog', {
+                gameId,
+                chatLog: current
+            });
+            return current;
+        });
+
         const emitDuration = Date.now() - actionStart;
         console.log(`[CLIENT PERF] game:action ${actionData.action} emit: ${emitDuration}ms`);
-    }, [socket, gameId, game, user, resetActivityTimer, handleLocalAction]);
+    }, [socket, gameId, game, user, resetActivityTimer, handleLocalAction, stripPlayerStateForStorage]);
 
     const handleRepositionCard = useCallback((cardId, newPosition, newZIndex) => {
         handleGameAction({
@@ -902,78 +1105,179 @@ const GameRoomPage = () => {
                 strippedStates[playerId] = stripPlayerStateForStorage(playerStates[playerId]);
             });
             
-            socket.emit('game:saveState', {
-                gameId,
-                gameState: strippedStates,
-                clientTimestamp: Date.now()
-            });
         }
+        //clear this user's player state, that way if he joins again, he'll tell other players that he has an empty player state (he's new)
+        setPlayerStates(prev => {
+            const updated = { ...prev };
+            delete updated[user._id];
+            return updated;
+        });
         socket.emit('game:leave', { gameId });
         navigate(`/home`);
     }, [socket, gameId, playerStates, user._id, navigate, stripPlayerStateForStorage]);
 
+    // ── Loading state ──
     if (!game) {
         return (
             <div className="game-room-loading">
-                <div className="loading-spinner"></div>
-                <p>Loading game...</p>
+                <div className="loading-spinner" />
+                <p>Entering...</p>
             </div>
         );
     }
 
     return (
-        <div className="game-room-page">
-            {showInactivityWarning && (
-                <div className="inactivity-warning-banner">
-                    <div className="inactivity-warning-content">
-                        <span className="warning-icon">⚠️</span>
-                        <span className="warning-text">
-                            Game will close in <strong>{inactivityCountdown}s</strong> due to inactivity. Perform any action to continue.
-                        </span>
-                    </div>
-                </div>
-            )}
+        <>
+            {/* Shared font import */}
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+            `}</style>
 
-            <div className="game-room-content">
-                <CardActionsProvider onGameAction={handleGameAction} playerStates={playerStates} userId={user._id}>
-                    <div className="game-area-wrapper">
-                        <LeftRail 
-                            onLeaveGame={leaveGame}
-                            onRollDice={handleRollDice}
-                            onUntapAll={handleUntapAll}
-                        />
-                        <div className="game-area">
-                            <BattleField 
-                                game={game}
-                                playerStates={playerStates}
-                                onRepositionCard={handleRepositionCard}
-                                onEndTurn={handleEndTurn}
-                                onStartGame={handleStartGame}
-                                deckBackImage={cardBack}
-                                diceResult={diceResult}
-                            />
+            <div className="game-room-page">
+
+                {/* ── Inactivity Warning ── */}
+                {showInactivityWarning && (
+                    <div className="inactivity-warning-banner">
+                        <div className="inactivity-warning-content">
+                            <span className="warning-icon">⚠</span>
+                            <span className="warning-text">
+                                Closing in <strong>{inactivityCountdown}s</strong> due to inactivity — perform any action to continue
+                            </span>
                         </div>
                     </div>
+                )}
 
-                    <PlayerArea 
-                        game={game} 
-                        playerStates={playerStates}
-                        onGameAction={handleGameAction}
-                    />
-                </CardActionsProvider>
+                {/* ── Content ── */}
+                <div className="game-room-content">
+                    <CardActionsProvider onGameAction={handleGameAction} playerStates={playerStates} userId={user._id}>
+                        <div className="game-area-wrapper">
+                             <LeftRail
+                                isCollapsed={!railOpen}
+                                onLeaveGame={leaveGame}
+                                onRollDice={handleRollDice}
+                                onUntapAll={handleUntapAll}
+                                onToggleChat={() => setShowChat(prev => !prev)}
+                                chatOpen={showChat}
+                            />
+                            <ChatLog
+                                messages={chatLog}
+                                isOpen={showChat}
+                            />
+                            <div className="game-area">
+                                <button
+                                    className="rail-toggle-tab"
+                                    onClick={() => setRailOpen(prev => !prev)}
+                                    title={railOpen ? 'Hide panel' : 'Show panel'}
+                                >
+                                    <svg viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        {railOpen
+                                            ? <polyline points="6,2 2,5 6,8" strokeLinecap="round" strokeLinejoin="round"/>
+                                            : <polyline points="4,2 8,5 4,8" strokeLinecap="round" strokeLinejoin="round"/>
+                                        }
+                                    </svg>
+                                </button>
+                                <BattleField 
+                                    game={game}
+                                    playerStates={playerStates}
+                                    onRepositionCard={handleRepositionCard}
+                                    onEndTurn={handleEndTurn}
+                                    onStartGame={handleStartGame}
+                                    deckBackImage={cardBack}
+                                    diceResult={diceResult}
+                                />
+                            </div>
+                        </div>
+                         <OpponentArea
+                            game={game}
+                            playerStates={playerStates}
+                        />
+
+                        <PlayerArea 
+                            game={game} 
+                            playerStates={playerStates}
+                            onGameAction={handleGameAction}
+                        />
+                    </CardActionsProvider>
+                </div>
             </div>
-        </div>
+        </>
     );
 };
 
 export default GameRoomPage;
 
-// GamePage Stuff:
-// - I want to be able to see tokens from scryfall search result.
-// - I want to see number of cards in opponents hands.
-// - Should be able to drag cards from hand to battlefield.
-// - Thin white highlight to the player whos turn it is. 
-// - Click and hold to highlight cards on battlefield. (Select Many)
 
-// need to be able to look at other player's other zones 
-// should see other players card counts
+
+
+
+// System architecture
+// The app is a client-authoritative real-time MTG simulator. Each client maintains its own playerStates map and broadcasts actions over WebSocket. There is no server-side rules enforcement — the server is a relay and state persistence layer.
+//Client-authoritative model: The acting client applies the state change immediately (step 3) before the server even receives it. This is the same model used by Cockatrice and Untap.in — players are trusted like in a paper game. The tradeoff is that state can silently diverge between clients if an action is processed differently on each side.
+
+
+// Todo:
+// - I want to be able to see tokens from scryfall search result.
+// - Should be able to drag cards from hand to battlefield.
+// - Thin highlight show whos turn it is. 
+// - Click and hold to highlight cards on battlefield. (Select Many)
+//submenus disappear too quick (then so do their parent menus), stay until player clicks off
+//inserted cards (outside deck) disappear from game if you disconnect because not added to players deck and not loaded on re-enter
+
+//todo: state drift concern, handle with sequence numbers and checksums 
+//idea is to move from client authoritative to server authoritative, but with sequence numbers for actions too
+
+
+
+
+//view card item should be removed when in a game and instead pull up the card img off to top right of the screen enlarged
+// Arrows / targeting indicators 
+//cards in the opponents hand should be shown (kind of like the fanned out version of the player zone hand we have but instead with card backs populating), should only be the other player (if 2 players in lobby) or the opponents who's turn it is, if its our turn then it doens't show anything
+
+
+
+
+//unit tests (make sure to test more than 2 players game page rendering.)
+//ship and deploy updates 
+//advertise (reddit and discords?, idk)
+
+
+
+//move analyzer (eventually, fix up chat log first)
+
+
+
+//BUG: leaving won't delete player state for the player that left
+//FIXED: Frontend socket hanlding this user leave would save state before leaving, and also backend socket handler wouldn't delete a leaving users save state
+
+//BUG: joining player has a populated state but not rendered => The opponent area rendered only when both conditions were true simultaneously: Object.keys(playerStates).length === 2 && playerCount === 2 (battlefield.js)
+//ROOTCAUSE: playerStates and playerCount come from two different state objects — playerStates (updated via socket sync) and game (updated via setGame). When p2 joins, their state arrives via game:syncState → handleStateUpdate, which updates playerStates but not game. So playerCount (from game.players.length) was still 1 while playerStates already had 2 entries — the condition was never satisfied, so the opponent area never mounted.
+//FIXED: Derive opponent rendering entirely from playerStates alone — the single source of truth that's actually live:
+//LESSON: When two state objects can represent the same reality but update independently, never use them together in a render condition
+
+
+
+
+
+
+//ISSUE: same save state log when a player joins is seen 4 times?
+//ATTEMPTED: Re-emission of game:join event (remounts of the component from useEffect dependencies), 1 came from handle local action (game actions cause remount of socket?)
+//also used a has joined flag per mounting of the socket and component so that only one connect event/game:join event per mount
+//websocket context also changed socket state to socket ref to get stable across re-renders cause by isConnected/error state changes 
+
+//bug: Concurrent sessions (multiple tabs) for the same user do not maintain synchronized game state.
+//state reconciliation only occurs after a subsequent game event (e.g., another player action or deck selection).
+
+//bug: inactive games aren't being closed out properly (still can join)
+//bug: same for alread active games
+
+//idk how being logged in on incognito on same account is working rn.
+
+//issue:
+// Right now the system has no answer to the question: "If two clients disagree about the battlefield, who is correct and how do we fix it?"
+// There's no checksum, no sequence number, no canonical state comparison, and no reconciliation path. Divergence is silent and permanent until someone refreshes.
+// need state consistency guarantees.
+
+//issue:
+// submenu for cards can clip outside the view port
+
+

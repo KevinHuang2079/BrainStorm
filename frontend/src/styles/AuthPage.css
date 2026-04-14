@@ -1,3 +1,5 @@
+/* AuthPage.css */
+
 .lightning-container {
   width: 100%;
   height: 100%;
@@ -32,11 +34,12 @@
 
 /* Forms */
 .Login-form,
-.Register-form {
+.Register-form,
+.Recovery-form {
   background: transparent;
   backdrop-filter: none;
   border: none;
-  padding: 40px;
+  padding: 40px 40px 0 40px;
   border-radius: 12px;
   box-shadow: none;
   width: 100%;
@@ -44,12 +47,12 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 20px;
 }
 
 /* Input Fields */
 .Login-form input,
-.Register-form input {
+.Register-form input,
+.Recovery-form input {
   width: 100%;
   padding: 14px 16px;
   background: transparent;
@@ -63,10 +66,13 @@
 
 .Login-form input:-webkit-autofill,
 .Register-form input:-webkit-autofill,
+.Recovery-form input:-webkit-autofill,
 .Login-form input:-webkit-autofill:hover,
 .Register-form input:-webkit-autofill:hover,
+.Recovery-form input:-webkit-autofill:hover,
 .Login-form input:-webkit-autofill:focus,
-.Register-form input:-webkit-autofill:focus {
+.Register-form input:-webkit-autofill:focus,
+.Recovery-form input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0 1000px transparent inset;
   -webkit-text-fill-color: #e0e0e0;
   caret-color: #e0e0e0; 
@@ -74,45 +80,49 @@
 }
 
 .Login-form input:focus,
-.Register-form input:focus {
+.Register-form input:focus,
+.Recovery-form input:focus {
   outline: none;
   border-color: rgba(255, 255, 255, 0.4);
 }
 
 .Login-form input::placeholder,
-.Register-form input::placeholder {
+.Register-form input::placeholder,
+.Recovery-form input::placeholder {
   color: rgba(255, 255, 255, 0.4);
 }
 
 /* Submit Buttons */
 .Login-form button[type="submit"],
-.Register-form button[type="submit"] {
+.Register-form button[type="submit"],
+.Recovery-form button[type="submit"] {
   width: 100%;
   padding: 14px;
   background: transparent;
   color: #f0f0f0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 8px;
+  margin-top: 18px;
 }
 
 .Login-form button[type="submit"]:hover,
-.Register-form button[type="submit"]:hover {
+.Register-form button[type="submit"]:hover,
+.Recovery-form button[type="submit"]:hover {
   background: transparent;
-  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .Login-form button[type="submit"]:active,
-.Register-form button[type="submit"]:active {
+.Register-form button[type="submit"]:active,
+.Recovery-form button[type="submit"]:active {
   background: transparent;
 }
 
 /* Toggle Text inside forms */
 .Login-form span,
-.Register-form span {
+.Register-form span,
+.Recovery-form span {
   color: rgba(255, 255, 255, 0.7);
   font-size: 15px;
   text-align: center;
@@ -120,18 +130,15 @@
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Error Messages */
 .error-message {
   color: #ff9999;
   font-size: 14px;
-  min-height: 20px;
+  min-height: 21px;
   opacity: 0;
   transition: opacity 0.3s ease;
   text-align: center;
-  padding: 8px;
   background: transparent;
   border-radius: 6px;
-  border-left: 4px solid rgba(255, 100, 100, 0.5);
 }
 
 .error-message.visible {
@@ -141,12 +148,13 @@
 /* Auth toggle text container */
 .auth-toggle-text {
   text-align: center;
-  margin-top: 8px;
+  margin-top: 0px;
 }
 
 /* Toggle Text inside forms */
 .Login-form span,
-.Register-form span {
+.Register-form span,
+.Recovery-form span {
   color: rgba(255, 255, 255, 0.7);
   font-size: 15px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -181,7 +189,8 @@
 /* Responsive Design */
 @media (max-width: 480px) {
   .Login-form,
-  .Register-form {
+  .Register-form,
+  .Recovery-form {
     padding: 30px 24px;
   }
 

@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 
-const Lightning = ({ hue = 230, xOffset = 0, speed = 1, intensity = 1, size = 1 }) => {
+const Lightning = ({ hue = 230, xOffset = 0, speed = 1, intensity = 5 , size = 20 }) => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -15,10 +15,6 @@ const Lightning = ({ hue = 230, xOffset = 0, speed = 1, intensity = 1, size = 1 
     window.addEventListener('resize', resizeCanvas);
 
     const gl = canvas.getContext('webgl');
-    if (!gl) {
-      console.error('WebGL not supported');
-      return;
-    }
 
     const vertexShaderSource = `
       attribute vec2 aPosition;
@@ -96,8 +92,14 @@ const Lightning = ({ hue = 230, xOffset = 0, speed = 1, intensity = 1, size = 1 
           uv += 2.0 * fbm(uv * uSize + 0.8 * iTime * uSpeed) - 1.0;
           
           float dist = abs(uv.x);
-          vec3 baseColor = hsv2rgb(vec3(uHue / 360.0, 0.7, 0.8));
-          vec3 col = baseColor * pow(mix(0.0, 0.07, hash11(iTime * uSpeed)) / dist, 1.0) * uIntensity;
+
+          // Dull purple color
+          vec3 baseColor = hsv2rgb(vec3(0.85, 0.35, 0.65));
+
+          // Reduced flicker (slower + less variation)
+          float flicker = mix(0.04, 0.06, hash11(iTime * uSpeed * 0.5));
+
+          vec3 col = baseColor * pow(flicker / dist, 1.0) * (uIntensity * 0.6);
           col = pow(col, vec3(1.0));
           fragColor = vec4(col, 1.0);
       }
@@ -113,7 +115,6 @@ const Lightning = ({ hue = 230, xOffset = 0, speed = 1, intensity = 1, size = 1 
       gl.shaderSource(shader, source);
       gl.compileShader(shader);
       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error('Shader compile error:', gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
         return null;
       }
@@ -131,11 +132,9 @@ const Lightning = ({ hue = 230, xOffset = 0, speed = 1, intensity = 1, size = 1 
     gl.linkProgram(program);
     
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error('Program linking error:', gl.getProgramInfoLog(program));
       return;
     }
     
-    // IMPORTANT: Use the program BEFORE getting uniform locations
     gl.useProgram(program);
 
     const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
@@ -147,7 +146,6 @@ const Lightning = ({ hue = 230, xOffset = 0, speed = 1, intensity = 1, size = 1 
     gl.enableVertexAttribArray(aPosition);
     gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
 
-    // Get uniform locations AFTER useProgram
     const iResolutionLocation = gl.getUniformLocation(program, 'iResolution');
     const iTimeLocation = gl.getUniformLocation(program, 'iTime');
     const uHueLocation = gl.getUniformLocation(program, 'uHue');

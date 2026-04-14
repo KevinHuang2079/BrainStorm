@@ -3,6 +3,8 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const corsMiddleware = require('./middleware/cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
 
 const authRoutes = require('./routes/auth');
@@ -16,8 +18,10 @@ const PORT = process.env.PORT || 5002;
 connectDB();
 
 // middleware
-app.use(express.json());
-app.use(corsMiddleware);
+app.use(corsMiddleware);   // first (handles preflight + credentials)
+app.use(helmet());         // security headers
+app.use(express.json());   // body parser
+app.use(cookieParser());   // parse cookies
 
 // routes
 app.use('/api/auth', authRoutes);
@@ -27,13 +31,21 @@ app.use('/api/game', gameRoutes);
 
 const httpServer = http.createServer(app);
 
+const corsOrigin =
+  process.env.NODE_ENV === 'dev' || process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3000'
+    : (process.env.CLIENT_URL || 'https://brainstorm-mtg.pages.dev');
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST'],
+    origin: corsOrigin,
     credentials: true,
-  },
+    methods: ['GET', 'POST']
+  }
 });
+
+console.log('Socket.IO CORS origin:', corsOrigin);
+
 
 require('./sockets/gameSocket')(io);
 
