@@ -8,4 +8,11 @@ module.exports = {
     extend: {},
   },
   plugins: [],
+  transformIgnorePatterns: [
+    '/node_modules/(?!(axios)/)'
+  ],
+  presets: [
+    ['@babel/preset-env', { targets: { node: 'current' } }],
+    ['@babel/preset-react', { runtime: 'automatic' }],
+  ],
 }

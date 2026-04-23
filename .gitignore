@@ -1,12 +1,18 @@
-# ========================= 
-# Node modules 
-# ========================= 
 node_modules/
 **/node_modules/
 
-# ========================= 
-# Logs 
-# ========================= 
+.env
+.env.local
+.env.*.local
+.env.production
+.env.test
+.env.development
+
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
 logs/
 *.log
 npm-debug.log*
@@ -15,9 +21,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# ========================= 
-# React / Frontend build / caches 
-# ========================= 
+coverage/
+*.lcov
+.nyc_output/
+
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
 frontend/build/
 frontend/.cache/
 frontend/.next/
@@ -25,71 +38,18 @@ frontend/.parcel-cache/
 frontend/.vite/
 frontend/dist/
 
-# ========================= 
-# Backend build / caches 
-# ========================= 
 backend/dist/
 backend/.cache/
 backend/.parcel-cache/
 backend/.vite/
-
-# MongoDB memory server cache
 backend/node_modules/.cache/mongodb-memory-server/
 
-# ========================= 
-# Environment / secrets 
-# ========================= 
-.env
-.env.local
-.env.*.local
-.env.production
-.env.test
-.env.development
+build/
+dist/
+.cache/
 
-# ========================= 
-# OS files 
-# ========================= 
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-
-# ========================= 
-# IDE/editor files 
-# ========================= 
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
-*.code-workspace
-
-# ========================= 
-# Misc temporary files 
-# ========================= 
 *.bak
 *.tmp
 *.old
 *.orig
 *~
-
-# ========================= 
-# Coverage / test output 
-# ========================= 
-coverage/
-*.lcov
-.nyc_output/
-
-# ========================= 
-# CI/CD artifacts 
-# ========================= 
-*.cache
-build/
-dist/
-
-# ========================= 
-# Project specific 
-# ========================= 
-Notes.txt
-package-lock.json
-yarn.lock
-pnpm-lock.yaml

@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js"
   },
@@ -37,6 +39,7 @@
     "jest": "^30.2.0",
     "mongodb-memory-server": "^10.2.3",
     "nodemon": "^3.1.10",
+    "socket.io-client": "^4.8.3",
     "supertest": "^7.1.4"
   }
 }

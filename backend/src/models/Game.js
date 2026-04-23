@@ -43,7 +43,7 @@ const gameSchema = new mongoose.Schema({
     },
     savedState: {
         type: mongoose.Schema.Types.Mixed,
-        default: null
+        default: {}
     },
     lastStateSave: {
         type: Date,

@@ -1,3 +1,4 @@
+import React from 'react';
 import '../styles/GameRoomPage.css';
 
 import { useState, useEffect, useContext, useRef, useCallback } from 'react';

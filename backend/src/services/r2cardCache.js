@@ -1,3 +1,5 @@
+//consolidate r2 client and scryfall service, look at fetch function, also backfill
+
 const scryfallService = require('../services/scryfallService');
 const { fetchCardFromR2, batchFetchCardsFromR2, uploadCardToR2 } = require('./r2client');
 
@@ -99,7 +101,8 @@ class CardCache {
             const freshCard = await scryfallService.getCardByName(existingData.name);
             if (!freshCard?.artCropUrl) return;
 
-            const updated = { ...existingData, ...freshCard };
+            //only pull artCropUrl from the fresh fetch; keep everything else from existing
+            const updated = { ...existingData, artCropUrl: freshCard.artCropUrl };
             await uploadCardToR2(scryfallId, updated);
             this.set(scryfallId, updated);
         } catch (err) {

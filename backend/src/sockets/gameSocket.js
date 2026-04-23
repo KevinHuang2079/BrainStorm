@@ -87,14 +87,20 @@ module.exports = (io) => {
         return cards.map(stripCardForStorage);
     }
 
+    // BUG FIX #3: Don't spread playerState first — only write zone keys when the
+    // client sent a real array for them. This prevents undefined zone values from
+    // ever reaching the DB and silently corrupting savedState on reads.
     function stripPlayerStateForStorage(playerState) {
         if (!playerState || typeof playerState !== 'object') return playerState;
         const zones = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'facedown', 'sideboard'];
-        const stripped = { ...playerState };
+        const stripped = {};
         for (const zone of zones) {
-            if (stripped[zone]) stripped[zone] = stripCardArrayForStorage(stripped[zone]);
+            if (Array.isArray(playerState[zone])) {
+                stripped[zone] = stripCardArrayForStorage(playerState[zone]);
+            }
+            // Intentionally skip undefined/null zones — don't store them at all
         }
-        // Preserve non-zone state
+        // Preserve non-zone scalar state
         return {
             ...stripped,
             lifeTotal: playerState.lifeTotal,
@@ -142,20 +148,32 @@ module.exports = (io) => {
 
     // ─── Inactivity timers ───────────────────────────────────────────────────────
 
+    // BUG FIX #7: Use a mutable ref object stored once in the map so that
+    // clearGameActivityTimer always sees the latest closeTimer value. The old
+    // code stored { warningTimer, closeTimer: null } first, then called
+    // gameActivityTimers.set() again inside the warning callback — but if
+    // clearGameActivityTimer ran between those two sets it read the stale null
+    // and could never cancel the close timer.
     function resetGameActivityTimer(gameId) {
         if (gameActivityTimers.has(gameId)) {
-            const { warningTimer, closeTimer } = gameActivityTimers.get(gameId);
-            clearTimeout(warningTimer);
-            clearTimeout(closeTimer);
+            const timers = gameActivityTimers.get(gameId);
+            clearTimeout(timers.warningTimer);
+            if (timers.closeTimer) clearTimeout(timers.closeTimer);
         }
+
         Game.findByIdAndUpdate(gameId, { lastActivityAt: new Date() }).catch(console.error);
 
-        const warningTimer = setTimeout(() => {
+        // Single mutable ref — set once, mutated in place so clearTimeout always
+        // sees the correct handle regardless of when it's called.
+        const timers = { warningTimer: null, closeTimer: null };
+        gameActivityTimers.set(gameId, timers);
+
+        timers.warningTimer = setTimeout(() => {
             io.to(`game:${gameId}`).emit('game:inactivityWarning', {
                 timeRemaining: INACTIVITY_CLOSE_TIME - INACTIVITY_WARNING_TIME
             });
 
-            const closeTimer = setTimeout(async () => {
+            timers.closeTimer = setTimeout(async () => {
                 try {
                     const game = await Game.findById(gameId);
                     if (game) {
@@ -168,18 +186,14 @@ module.exports = (io) => {
                     console.error('Error closing inactive game:', err);
                 }
             }, INACTIVITY_CLOSE_TIME - INACTIVITY_WARNING_TIME);
-
-            gameActivityTimers.set(gameId, { warningTimer, closeTimer });
         }, INACTIVITY_WARNING_TIME);
-
-        gameActivityTimers.set(gameId, { warningTimer, closeTimer: null });
     }
 
     function clearGameActivityTimer(gameId) {
         if (gameActivityTimers.has(gameId)) {
-            const { warningTimer, closeTimer } = gameActivityTimers.get(gameId);
-            clearTimeout(warningTimer);
-            if (closeTimer) clearTimeout(closeTimer);
+            const timers = gameActivityTimers.get(gameId);
+            clearTimeout(timers.warningTimer);
+            if (timers.closeTimer) clearTimeout(timers.closeTimer);
             gameActivityTimers.delete(gameId);
         }
     }
@@ -189,7 +203,6 @@ module.exports = (io) => {
     io.use(async (socket, next) => {
         const startTime = Date.now();
         try {
-            // const token = socket.handshake.auth.token; // parse token manually now, socket.io doesn't do this automatically.
             const cookies = cookie.parse(socket.handshake.headers.cookie || '');
             const token = cookies.token;
             if (!token) {
@@ -219,6 +232,11 @@ module.exports = (io) => {
     io.on('connection', async (socket) => {
         console.log('Client connected:', socket.id, 'User:', socket.username, 'ID:', socket.userId);
 
+        // BUG FIX #4: socket.io clears socket.rooms before the 'disconnect' event
+        // fires, so [...socket.rooms].filter(...) always yields []. Track the rooms
+        // this socket has joined in a local Set so disconnect cleanup is reliable.
+        const joinedGameRooms = new Set();
+
         // ── game:create ──────────────────────────────────────────────────────────
 
         socket.on('game:create', authenticated(socket, async (gameData) => {
@@ -240,6 +258,7 @@ module.exports = (io) => {
                 console.log(`[PERF] game:create DB save: ${Date.now() - t}ms`);
 
                 socket.join(`game:${newGame._id}`);
+                joinedGameRooms.add(`game:${newGame._id}`);
                 resetGameActivityTimer(newGame._id.toString());
 
                 t = Date.now();
@@ -271,8 +290,17 @@ module.exports = (io) => {
 
                 if (!game) return socket.emit('error', { message: 'Game not found' });
                 
-                //unique push into mongo if not already in connectedPlayers
-                const isAlreadyPlayer = game.players.some(p => p._id.toString() === socket.userId);
+                const isAlreadyPlayer = game.players.some(p => (p._id ?? p).toString() === socket.userId);
+
+                if (!isAlreadyPlayer && game.players.length >= game.maxPlayers)
+                    return socket.emit('error', { message: 'Game is full' });
+                if (!isAlreadyPlayer && game.status === 'active')
+                    return socket.emit('error', { message: 'Game has already started' });
+
+                // BUG FIX #5: Use atomic $addToSet to avoid the fetch-mutate-save
+                // race where two concurrent joins could overwrite each other. The
+                // old code called findByIdAndUpdate then saveAndPopulate(freshGame),
+                // meaning a second save() could clobber the first player's addition.
                 await Game.findByIdAndUpdate(gameId, {
                     $addToSet: { 
                         connectedPlayers: socket.userId,
@@ -280,23 +308,24 @@ module.exports = (io) => {
                     }
                 });
 
-                if (!isAlreadyPlayer && game.players.length >= game.maxPlayers)
-                    return socket.emit('error', { message: 'Game is full' });
-                if (!isAlreadyPlayer && game.status === 'active')
-                    return socket.emit('error', { message: 'Game has already started' });
-
                 t = Date.now();
-                await saveAndPopulate(game);
-                console.log(`[PERF] game:join save & populate: ${Date.now() - t}ms`);
+                // Re-fetch after the atomic update — populate only, no extra save()
+                const freshGame = await populateGame(Game.findById(gameId));
+                // await freshGame.populate('players', 'username');
+                // await freshGame.populate('host', 'username');
+                // await freshGame.populate('connectedPlayers', 'username');
+                // await freshGame.populate('currentTurn', 'username');
+                console.log(`[PERF] game:join populate: ${Date.now() - t}ms`);
 
                 socket.join(`game:${gameId}`);
+                joinedGameRooms.add(`game:${gameId}`);
                 resetGameActivityTimer(gameId);
 
                 t = Date.now();
                 await broadcastGamesList();
                 console.log(`[PERF] game:join getActiveGames: ${Date.now() - t}ms`);
 
-                let gameObject = game.toObject();
+                let gameObject = freshGame.toObject();
 
                 console.log('[SERVER JOIN] savedState exists?', !!gameObject.savedState);
                 console.log('[SERVER JOIN] savedState keys:', gameObject.savedState ? Object.keys(gameObject.savedState) : []);
@@ -378,7 +407,6 @@ module.exports = (io) => {
                         timestamp: Date.now()
                     });
                 } else {
-                    // (frontend: handleGameActionFromSocket)
                     socket.to(`game:${gameId}`).emit('game:action', {
                         username: socket.username,
                         playerId: socket.userId,
@@ -390,7 +418,7 @@ module.exports = (io) => {
 
                 console.log(`[PERF] game:action ${action}: DB=${dbDuration}ms, Hydrate=${hydrateDuration}ms, TOTAL=${Date.now() - totalStart}ms`);
             } catch (err) {
-                console.log (gameId, action, data);
+                console.log(gameId, action, data);
                 console.error('Game action error:', err);
                 socket.emit('error', { message: 'Failed to process action: ' + err.message });
             }
@@ -420,13 +448,13 @@ module.exports = (io) => {
                 game.status = 'active';
 
                 t = Date.now();
-                await saveAndPopulate(game);
+                const populated = await saveAndPopulate(game);
                 console.log(`[PERF] game:startGame save: ${Date.now() - t}ms`);
 
                 resetGameActivityTimer(gameId);
 
                 io.to(`game:${gameId}`).emit('game:started', {
-                    game,
+                    game: populated,
                     startingPlayer: startingPlayer.username
                 });
 
@@ -459,14 +487,14 @@ module.exports = (io) => {
                 game.currentTurn = game.players[(currentIndex + 1) % game.players.length]._id;
 
                 t = Date.now();
-                await saveAndPopulate(game);
+                const populated = await saveAndPopulate(game);
                 console.log(`[PERF] game:endTurn save: ${Date.now() - t}ms`);
 
                 resetGameActivityTimer(gameId);
 
                 io.to(`game:${gameId}`).emit('game:turnChanged', {
-                    currentTurn: game.currentTurn,
-                    username: game.currentTurn.username
+                    currentTurn: populated.currentTurn,
+                    username: populated.currentTurn.username
                 });
 
                 console.log(`[PERF] game:endTurn TOTAL: ${Date.now() - totalStart}ms`);
@@ -495,7 +523,13 @@ module.exports = (io) => {
                     delete game.savedState[socket.userId];
                     game.markModified('savedState');
                 }
-                if (game.currentTurn?.toString() === socket.userId && game.players.length > 0)
+
+                // BUG FIX #6: Normalize currentTurn to a plain id string before
+                // comparing — it may be a raw ObjectId or a populated object depending
+                // on how the document was fetched, so check both forms.
+                const currentTurnId = game.currentTurn?._id?.toString()
+                    ?? game.currentTurn?.toString();
+                if (currentTurnId === socket.userId && game.players.length > 0)
                     game.currentTurn = game.players[0];
 
                 if (game.host.toString() === socket.userId && game.players.length > 0)
@@ -514,20 +548,21 @@ module.exports = (io) => {
                     resetGameActivityTimer(gameId);
 
                     io.to(`game:${gameId}`).emit('game:playerLeft', {
-                        game,
+                        game: populated,
                         playerId: socket.userId,
                         username: socket.username
                     });
 
-                    if (game.currentTurn) {
+                    if (populated.currentTurn) {
                         io.to(`game:${gameId}`).emit('game:turnChanged', {
-                            currentTurn: game.currentTurn,
-                            username: game.currentTurn.username
+                            currentTurn: populated.currentTurn,
+                            username: populated.currentTurn.username
                         });
                     }
                 }
 
                 socket.leave(`game:${gameId}`);
+                joinedGameRooms.delete(`game:${gameId}`);
 
                 t = Date.now();
                 await broadcastGamesList();
@@ -596,11 +631,24 @@ module.exports = (io) => {
                     });
                 }
 
+                // BUG FIX #2: Reject saves with no timestamp rather than silently
+                // falling back to Date.now(). The fallback meant any save with a
+                // missing timestamp would always appear newer than stored state,
+                // bypassing the stale-check and potentially overwriting good data
+                // with undefined-zone garbage.
+                if (!clientTimestamp || typeof clientTimestamp !== 'number' || clientTimestamp <= 0) {
+                    console.warn('[SAVE STATE] rejected: missing or invalid clientTimestamp');
+                    return socket.emit('game:stateSaved', {
+                        success: false,
+                        error: 'Missing clientTimestamp — client must send Date.now() with every save'
+                    });
+                }
+                const timestamp = clientTimestamp;
+
                 let t = Date.now();
                 const game = await findGameForPlayer(gameId, socket.userId);
                 const dbDuration = Date.now() - t;
 
-                const timestamp = clientTimestamp || Date.now();
                 if (!game.savedState) game.savedState = {};
 
                 const isNewer = (existingState) =>
@@ -670,33 +718,41 @@ module.exports = (io) => {
         socket.on('disconnect', async () => {
             const totalStart = Date.now();
             console.log('[DISCONNECT] userId:', socket.userId, 'username:', socket.username);
-            console.log('[DISCONNECT] rooms:', [...socket.rooms]);
+            console.log('[DISCONNECT] tracked rooms:', [...joinedGameRooms]);
 
             if (!socket.userId) return;
 
             try {
-                // socket.rooms contains the rooms THIS socket was in
-                // it includes the socket's own room (socket.id) plus any joined rooms
-                const gameRooms = [...socket.rooms]
-                    .filter(room => room.startsWith('game:'));
-
+                // BUG FIX #1 + #4: socket.io empties socket.rooms before this event
+                // fires, so the original [...socket.rooms].filter() always yielded [].
+                // We use our own joinedGameRooms Set which is maintained through
+                // join/leave/create above.
+                //
+                // Additionally the original code called saveAndPopulate(game) after
+                // mutating game.connectedPlayers in JS — if game was fetched without
+                // savedState being modified, that save() would flush an empty savedState
+                // to disk. Instead, use an atomic $pull so we never touch savedState.
                 let t = Date.now();
-                for (const room of gameRooms) {
+                for (const room of joinedGameRooms) {
                     const gameId = room.replace('game:', '');
-                    const game = await Game.findById(gameId);
-                    if (!game) continue;
-                    console.log('[DISCONNECT] savedState for this player:', game.savedState?.[socket.userId] ? 'EXISTS' : 'MISSING');
 
-                    game.connectedPlayers = game.connectedPlayers.filter(
-                        p => p.toString() !== socket.userId
-                    );
-                    await saveAndPopulate(game);
+                    // Atomically remove from connectedPlayers — never touches savedState
+                    await Game.findByIdAndUpdate(gameId, {
+                        $pull: { connectedPlayers: socket.userId }
+                    });
+
+                    // Re-fetch the now-consistent document for the emit payload
+                    const freshGame = await populateGame(Game.findById(gameId));
+                    if (!freshGame) continue;
+
+                    console.log('[DISCONNECT] savedState for this player:',
+                        freshGame.savedState?.[socket.userId] ? 'EXISTS' : 'MISSING');
 
                     socket.to(room).emit('game:playerDisconnected', {
-                        game,
+                        game: freshGame,
                         playerId: socket.userId,
                         username: socket.username,
-                        savedState: game.savedState?.[socket.userId] // send their last known state from db
+                        savedState: freshGame.savedState?.[socket.userId]
                     });
                 }
                 console.log(`[PERF] disconnect update games: ${Date.now() - t}ms`);
@@ -711,9 +767,7 @@ module.exports = (io) => {
             }
         });
 
-
-
-        //this block used to be before event registering, do async stuff after registering events vro
+        // Emit initial game list after registering all event handlers
         const startTime = Date.now();
         const games = await getActiveGames();
         console.log(`[PERF] getActiveGames: ${Date.now() - startTime}ms`);
@@ -730,7 +784,20 @@ module.exports = (io) => {
             return [];
         }
     }
+
+    // BUG FIX #9: Expose a timer flush for test cleanup so Jest doesn't warn
+    // about open handles. The 23-hour setTimeout registered by resetGameActivityTimer
+    // keeps the process alive after each test suite. Only wired in test mode.
+    if (process.env.NODE_ENV === 'test') {
+        module.exports._clearAllTimers = () => {
+            for (const timers of gameActivityTimers.values()) {
+                clearTimeout(timers.warningTimer);
+                if (timers.closeTimer) clearTimeout(timers.closeTimer);
+            }
+            gameActivityTimers.clear();
+        };
+    }
 };
 
-//BUG: reloading didn't populate player states 
-//FIXED: registering events before getting games means listeners weren't setup for when client sent out a event, so request dropped
+// BUG: reloading didn't populate player states
+// FIXED: registering events before getting games means listeners weren't setup for when client sent out an event, so request dropped
