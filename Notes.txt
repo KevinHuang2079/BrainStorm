@@ -1,0 +1,238 @@
+Setup:
+    reset:
+    - rm -rf node_modules package-lock.json
+    - npm cache clean --force
+    - npm install
+
+    backend: 
+    - npm install express mongoose cors dotenv
+    - npm install socket.io
+    - npm install fastify fastify-websocket
+    - npm install --save-dev nodemon jest supertest mongodb-memory-server jsonwebtoken bcryptjs axois socket.io
+    - npm install @aws-sdk/client-s3 sib-api-v3-sdk nodemailer 
+    - npm install express-rate-limit
+    - npm install helmet
+    - npm install nodemailer
+    - npm install cookie
+    - npm install --save-dev jest supertest socket.io-client mongodb-memory-server cookie-parser @types/jest
+    - npm install --save-dev socket.io-client
+
+    
+    frontend:
+        npx create-react-app frontend
+        cd frontend
+        npm install axios
+        npm install lucide-react framer-motion
+        npm install --save-dev vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom react-router-dom socket.io-client ogl npx shadcn@latest add @react-bits/Lightning-JS-CSS motion
+        npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+        npm install --save-dev jest babel-jest @testing-library/react @testing-library/jest-dom @testing-library/user-event identity-obj-proxy
+        npm install --save-dev @babel/preset-env @babel/preset-react
+        npm install --save-dev jest@29 jest-environment-jsdom@29 babel-jest@29
+
+# Remove cached node_modules and cache files from Git tracking
+git rm -r --cached node_modules
+git rm -r --cached frontend/node_modules
+git rm -r --cached backend/node_modules
+git rm -r --cached backend/node_modules/.cache/mongodb-memory-server/
+
+
+npm run build
+npx wrangler pages deploy ./build --project-name=brainstorm-mtg
+
+
+
+
+
+
+
+
+
+
+
+
+INCIDENT:
+	
+
+Edit these and return only the edited scripts as artifacts without changing any comments at all. Summarize the supposed issue that was identified, and the proposed solution that was employed. Do this very briefly, Two paragraphs, each with 1-2 sentences. No further comments.
+
+If the scripts that need editing aren't attached, then list them and don't touch them until the next prompt, just list them for now briefly. 
+
+What scripts are involved, help me figure out. Answer without providing code, and answer with just a brief list. Answer without further comments.
+
+
+ls -a
+.                               build-images.sh                 outputs
+..                              deploy.sh                       package-lock.json
+.DS_Store                       docker                          provision-vm.sh
+.env                            docker-compose.dummy.yml        push-images.sh
+.env.production                 docker-compose.prod.yml         rollback.sh
+.env.production.local           docker-compose.yml              secrets-setup.sh
+.git                            dummy_app                       setup-firewall.sh
+.gitignore                      frontend                        test_payload.json
+agents                          gce-startup-script.sh
+backend                         health-check.sh
+
+
+frontend/src/
+├── App.css
+├── App.js
+├── components
+│   ├── AuthPage
+│   │   ├── Login.js
+│   │   ├── PasswordRecovery.jsx
+│   │   ├── Register.js
+│   │   └── ValidationPanel.js
+│   ├── HomePage
+│   │   ├── DeckList
+│   │   │   ├── CreateDeckModal.js
+│   │   │   ├── DeckItem.js
+│   │   │   ├── DeckList.js
+│   │   │   └── EditDeckModal.js
+│   │   ├── HomeBackground.jsx
+│   │   └── MatchList
+│   │       ├── GameList.js
+│   │       └── GameRoomItem.js
+│   ├── InGame
+│   │   ├── BattleField.js
+│   │   ├── CardActionsMenu.js
+│   │   ├── ChatLog.js
+│   │   ├── HandComponent.js
+│   │   ├── HoverMenu.js
+│   │   ├── LeftRail.js
+│   │   ├── PlayerArea.js
+│   │   ├── TurnIndicator.js
+│   │   └── ZoneViewingModal.js
+│   └── ViewCardItem.js
+├── contexts
+│   ├── auth.js
+│   ├── cardActions.js
+│   └── webSocket.js
+├── imgs
+│   ├── magic-card-back.png
+│   ├── magic-card-back2.png
+│   └── magic-card-backballs.png
+├── index.css
+├── index.js
+├── ogl
+│   ├── Lightning.js
+│   ├── Particles.js
+│   └── TiltedCard.js
+├── pages
+│   ├── AuthPage.js
+│   ├── GameRoomPage.js
+│   ├── HomePage.js
+│   └── ResetPasswordPage.jsx
+├── reportWebVitals.js
+├── services
+│   └── api.js
+├── setupTests.js
+└── styles
+    ├── AuthPage.css
+    ├── BattleField.css
+    ├── CardActionsMenu.css
+    ├── CreateDeckModal.css
+    ├── DeckItem.css
+    ├── DeckList.css
+    ├── EditDeckModal.css
+    ├── GameList.css
+    ├── GameRoomItem.css
+    ├── GameRoomPage.css
+    ├── HandComponent.css
+    ├── HomePage.css
+    ├── LeftRail.css
+    ├── Login.css
+    ├── PlayerArea.css
+    ├── Register.css
+    ├── TurnIndicator.css
+    ├── ViewCardItem.css
+    └── ZoneViewingModal.css
+
+backend/src/
+src/
+├── config
+│   └── database.js
+├── middleware
+│   ├── auth.js
+│   └── cors.js
+├── models
+│   ├── Deck.js
+│   ├── Game.js
+│   └── User.js
+├── routes
+│   ├── auth.js
+│   ├── card.js
+│   ├── deck.js
+│   └── game.js
+├── server.js
+├── services
+│   ├── emailService.js
+│   ├── r2cardCache.js
+│   ├── r2client.js
+│   └── scryfallService.js
+├── sockets
+│   └── gameSocket.js
+└── utils
+    └── emailValidator.js
+
+
+
+Security:
+- helmet middleware to set headers on every response
+- rate limiting for login and register
+- session storage (handling token in JS entirely) -> httpOnly cookies
+
+Helmet sets headers like:
+    X-Content-Type-Options (prevents MIME sniffing)
+    X-Frame-Options (prevents clickjacking)
+    Content-Security-Policy (XSS protection layer)
+
+SessionSorage
+    Backend returns { token }
+    Frontend stores token in sessionStorage
+    Axios manually adds Authorization
+
+HttpOnly Cookies
+    Backend sets cookie: Set-Cookie: token=...; HttpOnly; Secure
+    Browser automatically sends cookie
+    Frontend never sees the token
+
+
+Help me with this, don't use language like "what draws me to" or "what interests me" use human but professional language, okay not perfect grammar, actually preferred. No hyphens --. 
+
+
+I'm a Computer Science graduate from Chapman University with hands-on experience across the full stack, from backend APIs and event-driven pipelines to React frontends and real-time systems. I build things end to end and I'm comfortable owning a feature from database to UI.
+Some recent work: an AI-powered GitHub PR reviewer with an Express.js backend, PostgreSQL persistence, and WebSocket layer for real-time updates, a Kafka-based incident triage platform on AWS EC2 processing 100+ events per minute, and a multiplayer card game simulator running 8 concurrent players at sub-100ms latency. Across all of it I've focused on building things that are reliable and scalable, not just functional.
+I learn fast, care about the details, and want to contribute to a team doing real engineering work. Would love to connect.
+Kevin Huang
+925-481-8037 | kevhuang2402212@gmail.com | linkedin.com/in/KevinHuan
+
+I've spent the last few years building real systems, not just coursework projects. Backend pipelines processing hundreds of events per minute, full stack applications with real users, AI powered tools that cut research time by 85%. The through line in all of it is that I care about building things that actually work under pressure, not just in a demo.
+I'm also at a point in my career where I'm hungry to grow. I pick things up fast, I ask questions, and I don't need a lot of hand holding once I understand the problem. I've worked in research environments, built solo projects from scratch, and collaborated across teams. I know how to contribute without waiting to be told exactly what to do.
+The technical foundation is there. The drive is there. I just need the right environment to put it to work, and I think this role is that.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+WTF?:
+UBER *ONE MEMBERSHIP UBER.COM/BILLCA
+Back Market 170-7724930 NY
+
+Notes:
+
+HttpOnly cookie (most secure):
+
+Server sets the JWT as an HttpOnly cookie on login. The browser sends it automatically with every request and socket handshake. JavaScript never touches the token at all.
+
+Files: backend/src/routes/auth.js, backend/src/middleware/auth.js, backend/src/sockets/gameSocket.js (read from cookie instead of socket.handshake.auth.token), contexts/webSocket.js (remove auth token from handshake), services/api.js (enable withCredentials), contexts/auth.js (remove token handling entirely)
+
+Tradeoff: Requires CORS credentials: true config and same-site considerations. Most work, but the correct long-term architecture.
