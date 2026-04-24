@@ -53,3 +53,10 @@ dist/
 *.old
 *.orig
 *~
+
+.vscode
+
+note.txt
+Notes.txt
+
+note*.txt
