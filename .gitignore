@@ -54,7 +54,7 @@ dist/
 *.orig
 *~
 
-.vscode
+.vscode/
 
 note.txt
 Notes.txt

@@ -11,3 +11,8 @@ const corsOptions = {
 };
 
 module.exports = cors(corsOptions);
+
+
+//todo:
+// get rid of bot scrapers
+// old games aren't being deleted.

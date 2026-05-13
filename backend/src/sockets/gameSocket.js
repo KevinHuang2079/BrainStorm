@@ -5,8 +5,10 @@ const cardCache = require('../services/r2cardCache');
 
 const User = require('../models/User');
 const gameActivityTimers = new Map();
-const INACTIVITY_WARNING_TIME = 23 * 60 * 60 * 1000; // 23 hours in ms
-const INACTIVITY_CLOSE_TIME = 24 * 60 * 60 * 1000;  // 24 hours in ms
+const INACTIVITY_WARNING_TIME = 1 * 60 * 1000; // 1 minute
+const INACTIVITY_CLOSE_TIME = 5 * 60 * 1000;   // 5 minutes
+// const INACTIVITY_WARNING_TIME = 23 * 60 * 60 * 1000; // 23 hours in ms
+// const INACTIVITY_CLOSE_TIME = 24 * 60 * 60 * 1000;  // 24 hours in ms
 
 const cookie = require('cookie');
 
@@ -169,11 +171,13 @@ module.exports = (io) => {
         gameActivityTimers.set(gameId, timers);
 
         timers.warningTimer = setTimeout(() => {
+            console.log(`[INACTIVITY] Warning fired for game ${gameId}`);
             io.to(`game:${gameId}`).emit('game:inactivityWarning', {
                 timeRemaining: INACTIVITY_CLOSE_TIME - INACTIVITY_WARNING_TIME
             });
 
             timers.closeTimer = setTimeout(async () => {
+                console.log(`[INACTIVITY] Close fired for game ${gameId}`);
                 try {
                     const game = await Game.findById(gameId);
                     if (game) {
@@ -542,7 +546,7 @@ module.exports = (io) => {
                     clearGameActivityTimer(gameId);
                 } else {
                     t = Date.now();
-                    await saveAndPopulate(game);
+                    const populated = await saveAndPopulate(game);
                     console.log(`[PERF] game:leave save: ${Date.now() - t}ms`);
 
                     resetGameActivityTimer(gameId);

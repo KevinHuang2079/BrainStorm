@@ -38,7 +38,10 @@ const corsOrigin =
 
 const io = new Server(httpServer, {
   cors: {
-    origin: corsOrigin,
+    origin: [
+      'http://localhost:3000',
+      'https://brainstorm-mtg.pages.dev'
+    ],
     credentials: true,
     methods: ['GET', 'POST']
   }
@@ -51,4 +54,6 @@ require('./sockets/gameSocket')(io);
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server and socket running on port ${PORT}`);
+  console.log('Socket.IO CORS origin:', corsOrigin);
+  console.log('NODE_ENV:', process.env.NODE_ENV); 
 });

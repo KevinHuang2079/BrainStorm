@@ -1,0 +1,90 @@
+GPUs:
+    Low (1080p)
+        - intel arc b580
+    Mid (1440p)
+        - rx970
+    High (4k)
+        - rtx 5080
+        - Radeon rx7900
+
+Intel new to gpus so drivers are not great
+AMD and NVIDIA good picks
+*VRAM (memory embedded onto the gpu, at least 12)
+
+
+
+
+
+
+CPUs:
+    AMD (Ryzen), old AM4 (1000-5000 CPUs), new AM5 (7000-current)
+    Intel old (LG700 12-14th gen), new (LGA 1851 Intel Core Ultra-current)
+    *Core count (6 is min, 8 is recommended)
+    *old cpus can outperform because single thread speeds are higher (#cores doesn't mean faster for games)
+
+Motherboards:
+    AMD, low -> high:
+        - A -> B -> X
+    Intel, low -> high:
+        - H -> B -> Z
+    *socket + chipset 
+    *higher number after letter the more current
+
+
+
+
+
+
+RAM:
+    DDR4 - older (needs 16gb)
+        Intel - LGA 1200, *1700
+    DDR5 - current (needs 32gb)
+        Intel - LGA 1851, 1954, *1700
+        AMD - AM5
+    *High speed to low CAS latency (5600mhz CL40 DDR5 is bad) (5600mhz CL30 DDR5 is good)
+
+RAM kits:
+    AM5 
+        6000mhz CL30 DDR5
+        6000mhz CL28 DDR5
+    LGA 1851 
+        6400mhz CL32 DDR5
+
+
+
+
+
+
+SSDs:
+*just more is better
+*just make sure has DRAM controller (r/w speeds can fall off over time)
+
+
+
+
+
+
+
+PSUs:
+*Min PSU for GPU lookup (maybe add 100 watts buffer to be safe)
+*at least 80 plus bronze (power prevention measures for gpu or cpu in power outage)
+*modularity is power cables that you have access to (not bundled in the PSU)
+
+
+
+
+
+Cases:
+*match motherboard size with the case size (ATX, MicroATX, ITX)
+
+
+
+Cooling:
+*out of the box coolers for cpu aren't as good as after market
+*AIO, water coolers, best, pumps can be loud
+*air coolers, not far behind, last long
+
+
+
+Case Fans:
+*at least 4

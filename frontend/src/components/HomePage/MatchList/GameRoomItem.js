@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import '../../../styles/GameRoomItem.css';
 
-const WARN_MS  = 23 * 60 * 60 * 1000;
-const CLOSE_MS = 24 * 60 * 60 * 1000;
+const WARN_MS  = 1 * 60 * 1000;  // 1 minute
+const CLOSE_MS = 5 * 60 * 1000;  // 5 minutes
 
 function useInactivityCountdown(lastActivityAt) {
     const [now, setNow] = useState(Date.now());

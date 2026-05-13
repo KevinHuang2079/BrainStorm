@@ -31,6 +31,7 @@ export const WebSocketProvider = ({ children }) => {
         });
 
         newSocket.on('connect', () => {
+            console.log('user connected', user);
             setIsConnected(true);
             setError(null);
         });
