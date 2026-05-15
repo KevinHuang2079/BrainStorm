@@ -16,6 +16,8 @@ Setup:
     - npm install cookie
     - npm install --save-dev jest supertest socket.io-client mongodb-memory-server cookie-parser @types/jest
     - npm install --save-dev socket.io-client
+    - npm install -D typescript ts-node @types/node
+    - npm install -D @types/express
 
     
     frontend:
