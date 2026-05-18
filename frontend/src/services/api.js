@@ -53,8 +53,7 @@ export const authAPI = {
         sessionStorage.removeItem('user');
     },
     fetchCurrentUser: async() => {
-        const stored = sessionStorage.getItem('user');
-        if (!stored) return null;
+        const stored = sessionStorage.getItem('user'); //set it for being used elsewhere
 
         try {   
             const response = await api.get('/auth/me');
