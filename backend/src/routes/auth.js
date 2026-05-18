@@ -69,7 +69,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         res.cookie('token', token, {
             httpOnly: true,
             secure: true,
-            sameSite: 'strict',
+            sameSite: 'none',
             maxAge: 1000 * 60 * 60 * 24 * 7
         });
 
@@ -112,7 +112,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         res.cookie('token', token, {
             httpOnly: true,
             secure: true,
-            sameSite: 'none', //was none
+            sameSite: 'none', 
             maxAge: 1000 * 60 * 60 * 24 * 7
         });
 
@@ -132,8 +132,8 @@ router.post('/login', loginLimiter, async (req, res) => {
 router.post('/logout', (req, res) => {
     res.clearCookie('token', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: true,
+        sameSite: 'none',
     });
     res.json({ message: 'Logged out' });
 });

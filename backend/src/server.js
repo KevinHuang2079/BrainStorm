@@ -38,10 +38,7 @@ const corsOrigin =
 
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      'http://localhost:3000',
-      'https://brainstorm-mtg.pages.dev'
-    ],
+    origin: corsOrigin,
     credentials: true,
     methods: ['GET', 'POST']
   }
