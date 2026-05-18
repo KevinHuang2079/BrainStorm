@@ -25,6 +25,15 @@ const registerLimiter = rateLimit({
     }
 });
 
+const isProduction = process.env.NODE_ENV === 'prod';
+
+const cookieOptions = {
+    httpOnly: true,
+    secure: isProduction,           // false on localhost (HTTP), true on Render (HTTPS)
+    sameSite: isProduction ? 'none' : 'lax',  // 'none' needs secure, 'lax' works for localhost
+    maxAge: 1000 * 60 * 60 * 24 * 7
+};
+
 router.post('/register', registerLimiter, async (req, res) => {
     try {
         const { username, email, password } = req.body;
@@ -66,12 +75,7 @@ router.post('/register', registerLimiter, async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none',
-            maxAge: 1000 * 60 * 60 * 24 * 7
-        });
+        res.cookie('token', token, cookieOptions);
 
         res.status(201).json({
             user: {
@@ -109,12 +113,7 @@ router.post('/login', loginLimiter, async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none', 
-            maxAge: 1000 * 60 * 60 * 24 * 7
-        });
+        res.cookie('token', token, cookieOptions);
 
         res.status(200).json({
             user: {
@@ -132,8 +131,8 @@ router.post('/login', loginLimiter, async (req, res) => {
 router.post('/logout', (req, res) => {
     res.clearCookie('token', {
         httpOnly: true,
-        secure: true,
-        sameSite: 'none',
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
     });
     res.json({ message: 'Logged out' });
 });

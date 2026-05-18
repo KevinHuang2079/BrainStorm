@@ -32,9 +32,7 @@ app.use('/api/game', gameRoutes);
 const httpServer = http.createServer(app);
 
 const corsOrigin =
-  process.env.NODE_ENV === 'dev' || process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000'
-    : (process.env.CLIENT_URL || 'https://brainstorm-mtg.pages.dev');
+  process.env.NODE_ENV === 'dev' ? 'http://localhost:3000' : (process.env.CLIENT_URL || 'https://brainstorm-mtg.pages.dev');
 
 const io = new Server(httpServer, {
   cors: {
