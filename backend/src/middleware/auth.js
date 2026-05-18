@@ -16,6 +16,9 @@ const auth = async (req, res, next) => {
         }
         
         req.user = user;
+        console.log('AUTH MW cookies:', req.cookies);
+        console.log('AUTH MW headers:', req.headers.cookie);
+
         next();
     } catch (err) {
         if (err.name === 'JsonWebTokenError') {
