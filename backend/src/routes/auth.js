@@ -25,7 +25,9 @@ const registerLimiter = rateLimit({
     }
 });
 
-const isProduction = process.env.NODE_ENV === 'prod';
+const isProduction = ['production', 'prod'].includes(process.env.NODE_ENV);
+console.log('NODE_ENV:', process.env.NODE_ENV, '| isPro`duction:', isProduction);
+
 
 const cookieOptions = {
     httpOnly: true,
