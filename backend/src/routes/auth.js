@@ -25,14 +25,10 @@ const registerLimiter = rateLimit({
     }
 });
 
-const isProduction = ['production', 'prod'].includes(process.env.NODE_ENV);
-console.log('NODE_ENV:', process.env.NODE_ENV, '| isPro`duction:', isProduction);
-
-
 const cookieOptions = {
     httpOnly: true,
-    secure: isProduction,           // false on localhost (HTTP), true on Render (HTTPS)
-    sameSite: isProduction ? 'none' : 'lax',  // 'none' needs secure, 'lax' works for localhost
+    secure: true,
+    sameSite: 'lax',
     maxAge: 1000 * 60 * 60 * 24 * 7
 };
 
@@ -133,8 +129,8 @@ router.post('/login', loginLimiter, async (req, res) => {
 router.post('/logout', (req, res) => {
     res.clearCookie('token', {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
+        secure: true,
+        sameSite: 'lax'
     });
     res.json({ message: 'Logged out' });
 });
