@@ -24,6 +24,7 @@ export const WebSocketProvider = ({ children }) => {
 
         const newSocket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5002', {
             withCredentials: true,
+            transports: ['websocket'], //should work
             autoConnect: true,
             reconnection: true,
             reconnectionDelay: 1000,

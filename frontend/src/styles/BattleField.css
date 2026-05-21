@@ -13,14 +13,16 @@
 }
 
 /* ── Layout zones ── */
-.four-player-layout .shared-battlefield-area {
+.four-player-layout .shared-battlefield-area,
+.three-player-layout .shared-battlefield-area {
     flex: 1;
     min-height: 0;
     border-bottom: 1px solid rgba(201,168,76,0.15);
     background: rgba(8,8,15,0.6);
 }
 
-.four-player-layout .personal-battlefield-area {
+.four-player-layout .personal-battlefield-area,
+.three-player-layout .personal-battlefield-area {
     flex: 1;
     min-height: 0;
 }

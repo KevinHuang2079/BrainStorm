@@ -9,6 +9,8 @@ const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const crypto = require('crypto');
 const { sendPasswordRecovery } = require('../services/emailService');
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10,
@@ -27,8 +29,8 @@ const registerLimiter = rateLimit({
 
 const cookieOptions = {
     httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
+    secure: isProd,                      // false on localhost
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: 1000 * 60 * 60 * 24 * 7
 };
 
@@ -129,8 +131,8 @@ router.post('/login', loginLimiter, async (req, res) => {
 router.post('/logout', (req, res) => {
     res.clearCookie('token', {
         httpOnly: true,
-        secure: true,
-        sameSite: 'lax'
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
     });
     res.json({ message: 'Logged out' });
 });

@@ -520,7 +520,8 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
     }, [playerStates]);
 
     const getLayoutClass = () => {
-        if (playerCount <= 2) return 'two-player-layout';
+        if (opponents.length <= 1) return 'two-player-layout';
+        if (opponents.length === 2) return 'three-player-layout';
         return 'four-player-layout';
     };
 
@@ -597,16 +598,18 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
 
     return (
         <div className={`battlefield-wrapper ${getLayoutClass()}`}>
-            {opponents.length >= 3 && (
+            {opponents.length >= 2 && (
                 <div className='shared-battlefield-area'>
-                    <div className='quadrant-grid'>
-                        {opponents.slice(0, 4).map((player, idx) => {
+                    <div
+                        className='quadrant-grid'
+                        style={{ gridTemplateColumns: `repeat(${opponents.length}, 1fr)` }}
+                    >
+                        {opponents.slice(0, 3).map((player, idx) => {   // cap at 3 opponents = 4-player game
                             const dims = quadrantDimensions[player._id] || { width: 0, height: 0 };
-                            
                             return (
                                 <div key={player._id} className={`quadrant quadrant-${idx + 1}`}>
                                     <div className='quadrant-label'>{player.username}</div>
-                                    <div 
+                                    <div
                                         ref={el => quadrantRefs.current[player._id] = el}
                                         className='quadrant-cards'
                                     >
@@ -638,24 +641,16 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
                 </div>
             )}
 
-            {(opponents.length >= 1 && opponents.length < 3) && (
+            {opponents.length === 1 && (
                 <div className='opponent-battlefield-area'>
                     {opponents.map(player => {
                         const dims = opponentDimensions[player._id] || { width: 0, height: 0 };
-                        
                         return (
-                            <div 
-                                key={player._id} 
-                                className='opponent-board'
-                            >
+                            <div key={player._id} className='opponent-board'>
                                 <div className='opponent-label'>{player.username}</div>
-                                <div 
+                                <div
                                     ref={el => opponentRefs.current[player._id] = el}
-                                    style={{ 
-                                        position: 'relative', 
-                                        width: '100%', 
-                                        height: '100%' 
-                                    }}
+                                    style={{ position: 'relative', width: '100%', height: '100%' }}
                                 >
                                     {(player.battlefield || []).map(card => {
                                         const position = normalizeCardPosition(card, dims);

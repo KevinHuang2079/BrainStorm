@@ -853,23 +853,23 @@ const GameRoomPage = () => {
             }]);
         };
 
-        const handleInactivityWarning = ({ timeRemaining }) => {
+        const handleInactivityWarning = ({ timeRemaining, closesAt }) => {
             setShowInactivityWarning(true);
-            setInactivityCountdown(Math.floor(timeRemaining / 1000));
-            
+
             if (inactivityCountdownIntervalRef.current) {
                 clearInterval(inactivityCountdownIntervalRef.current);
             }
-            
-            inactivityCountdownIntervalRef.current = setInterval(() => {
-                setInactivityCountdown(prev => {
-                    if (prev <= 1) {
-                        clearInterval(inactivityCountdownIntervalRef.current);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
+
+            const tick = () => {
+                const secondsLeft = Math.max(0, Math.round((closesAt - Date.now()) / 1000));
+                setInactivityCountdown(secondsLeft);
+                if (secondsLeft <= 0) {
+                    clearInterval(inactivityCountdownIntervalRef.current);
+                }
+            };
+
+            tick(); // set immediately, don't wait 1s for first render
+            inactivityCountdownIntervalRef.current = setInterval(tick, 1000);
         };
 
         const handleGameClosed = () => {
