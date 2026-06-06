@@ -734,3 +734,29 @@
     border-bottom: 1px solid var(--gold-border);
   }
 }
+
+.import-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.import-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.import-note {
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #888);
+    margin-top: 6px;
+}

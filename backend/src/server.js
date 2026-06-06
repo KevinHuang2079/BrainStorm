@@ -54,3 +54,7 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log('Socket.IO CORS origin:', corsOrigin);
   console.log('NODE_ENV:', process.env.NODE_ENV); 
 });
+
+app.get('/health', (req, res) => {
+  res.status(200).send('ok');
+});

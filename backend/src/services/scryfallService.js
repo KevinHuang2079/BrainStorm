@@ -4,22 +4,20 @@ const SCRYFALL_API = 'https://api.scryfall.com';
 
 class ScryfallService {
     async searchCards(searchTerm) {
+        const term = searchTerm.trim();
         try {
-            const response = await axios.get(
-                `${SCRYFALL_API}/cards/search`,
-                {
-                    params: {
-                        q: searchTerm,
-                        order: 'name'
-                    }
+            // Primary: search name field (matches "A // B" cards if term matches front)
+            // Adding `or name:` with the term unquoted lets Scryfall do partial matching
+            const response = await axios.get(`${SCRYFALL_API}/cards/search`, {
+                params: {
+                    q: `name:/${term}/`,  // regex search — matches anywhere in full name including back face
+                    order: 'name',
+                    unique: 'cards',
                 }
-            );
-            
+            });
             return response.data.data.map(card => this.transformScryfallCard(card));
         } catch (error) {
-            if (error.response?.status === 404) {
-                return []; 
-            }
+            if (error.response?.status === 404) return [];
             throw error;
         }
     }
@@ -257,6 +255,52 @@ class ScryfallService {
             return cardsData;
         }
     }
+
+    // Add to ScryfallService class in scryfallService.js
+
+    // Fetch a single card by its Scryfall UUID
+    async getCardByScryfallId(scryfallId) {
+        try {
+            const response = await axios.get(`${SCRYFALL_API}/cards/${scryfallId}`);
+            return this.transformScryfallCard(response.data);
+        } catch (error) {
+            if (error.response?.status === 404) return null;
+            throw error;
+        }
+    }
+
+    // Batch fetch by Scryfall IDs (uses the same /cards/collection endpoint)
+    async getCardsBatchByScryfallIds(scryfallIds = []) {
+        if (!scryfallIds.length) return { found: [], notFound: [] };
+
+        // split into chunks
+        const BATCH_SIZE = 10;
+        const batches = [];
+        for (let i = 0 ; i < scryfallIds.length; i += BATCH_SIZE){
+            batches.push(scryfallIds.slice(i, i+BATCH_SIZE));
+        }
+
+        // batch requests in parallel
+        const results = await Promise.all(
+            batches.map(async (batch) => {
+                try {
+                    const response = await axios.post(`${SCRYFALL_API}/cards/collection`, {
+                        identifiers: batch.map(id => ({id}))
+                    });
+                } catch (err) {
+                    console.log('Error batch fetching from scryfall', err.message);
+                    return { found: [], notFound : batch};
+                }
+            })
+        );
+
+        return { 
+            found: results.flatMap(r => r.found), 
+            notFound: results.flatMap(r => r.notFound),
+        };
+    }
 }
 
 module.exports = new ScryfallService();
+
+//dual cards aren't being searched 

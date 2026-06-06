@@ -6,7 +6,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { deckAPI, cardAPI } from '../../../services/api';
 import '../../../styles/EditDeckModal.css';
 import ViewCardItem from '../../ViewCardItem';
-//todo: prices very inaccurate
 
 /* ─────────────────────────────────────────
    Constants
@@ -118,7 +117,7 @@ const DroppableZone = ({ zoneKey, label, cards, deckSearchTerm, sortOrder, activ
         <div ref={setNodeRef} className={`zone-cards${isOver ? ' zone-drag-over' : ''}`} data-zone={zoneKey}>
           {sortedCards.map(card => (
             <SortableCardRow
-              key={card.scryfallId}
+              key={`${zoneKey}:${card.scryfallId}`}
               card={card}
               zone={zoneKey}
               onIncrement={onIncrement}
@@ -157,6 +156,33 @@ const DragOverlayCard = ({ card }) => {
 };
 
 /* ─────────────────────────────────────────
+   useCardQueue  –  per-card serial mutation queue
+   ─────────────────────────────────────────
+   Each card key ("zoneKey:scryfallId") owns a Promise chain stored in
+   cardQueues.current.  Enqueueing appends a new .then() so that a card's
+   mutations always execute one-at-a-time regardless of how fast the user
+   clicks.  Different cards still run concurrently.
+───────────────────────────────────────── */
+const useCardQueue = () => {
+  // Map<cardKey, Promise<void>>
+  const cardQueues = useRef(new Map());
+
+  const enqueue = useCallback((cardKey, task) => {
+    const prev = cardQueues.current.get(cardKey) ?? Promise.resolve();
+    const next = prev.then(() => {
+      console.log(`[Queue] ▶ executing task for ${cardKey}`);
+      return task();
+    }).catch((err) => {
+      console.warn(`[Queue] ✗ task error for ${cardKey}`, err);
+    });
+    console.log(`[Queue] + enqueued task for ${cardKey}`);
+    cardQueues.current.set(cardKey, next);
+  }, []);
+
+  return enqueue;
+};
+
+/* ─────────────────────────────────────────
    EditDeckModal
 ───────────────────────────────────────── */
 const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
@@ -175,10 +201,15 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
   const [localCards, setLocalCards]               = useState([]);
   const [localSideboard, setLocalSideboard]       = useState([]);
   const [localStartInPlay, setLocalStartInPlay]   = useState([]);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
 
   const [activeId, setActiveId] = useState(null);
 
-  const pendingRef = useRef(0);
+  // Stable ref so async closures always read the latest deck without
+  // needing it in their dependency arrays.
+  const currentDeckRef = useRef(currentDeck);
+
+  const enqueue = useCardQueue();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -187,6 +218,7 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
   useEffect(() => {
     if (!deck) return;
     setCurrentDeck(deck);
+    currentDeckRef.current = deck;
     setDeckFormat(deck.format || 'Standard');
     setLocalCards(deck.cards || []);
     setLocalSideboard(deck.sideboard || []);
@@ -194,7 +226,9 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
   }, [deck]);
 
   const applyFreshDeck = useCallback((freshDeck) => {
+    console.log(`[Deck] ✔ applyFreshDeck — cards:${freshDeck.cards?.length} side:${freshDeck.sideboard?.length} sip:${freshDeck.startInPlay?.length}`);
     setCurrentDeck(freshDeck);
+    currentDeckRef.current = freshDeck;
     setLocalCards(prev => mergeZone(prev, freshDeck.cards));
     setLocalSideboard(prev => mergeZone(prev, freshDeck.sideboard));
     setLocalStartInPlay(prev => mergeZone(prev, freshDeck.startInPlay));
@@ -219,6 +253,7 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
     return { zoneKey: id.slice(0, idx), scryfallId: id.slice(idx + 1) };
   };
 
+  /* ── Drag handlers ── */
   const handleDragStart = ({ active }) => setActiveId(active.id);
 
   const handleDragEnd = ({ active, over }) => {
@@ -226,10 +261,8 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
     if (!over || active.id === over.id) return;
 
     const { zoneKey: fromZone, scryfallId } = parseId(active.id);
-
     const ZONE_KEYS = new Set(ZONES.map(z => z.key));
     const toZone = ZONE_KEYS.has(over.id) ? over.id : parseId(over.id).zoneKey;
-
     if (!toZone) return;
 
     if (fromZone === toZone) {
@@ -248,17 +281,21 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
 
       const fromApiZone = ZONES.find(z => z.key === fromZone)?.apiKey;
       const toApiZone   = ZONES.find(z => z.key === toZone)?.apiKey;
-
-      const deckSnapshot = currentDeck;
+      // Snapshot the deck id at drag-end time; the ref gives us the current value.
+      const deckId = currentDeckRef.current._id;
 
       (async () => {
         try {
-          await deckAPI.removeCardFromDeck(deckSnapshot._id, scryfallId, fromApiZone, card.quantity);
-          await deckAPI.addCardToDeck(deckSnapshot._id, scryfallId, toApiZone, card.quantity);
-          const freshDeck = await deckAPI.getDeckById(deckSnapshot._id);
+          await deckAPI.removeCardFromDeck(deckId, scryfallId, fromApiZone, card.quantity);
+          await deckAPI.addCardToDeck(deckId, scryfallId, toApiZone, card.quantity);
+          const freshDeck = await deckAPI.getDeckById(deckId);
           applyFreshDeck(freshDeck);
         } catch {
-          applyFreshDeck(deckSnapshot);
+          // Re-fetch ground truth rather than rolling back to a possibly-stale snapshot.
+          try {
+            const freshDeck = await deckAPI.getDeckById(deckId);
+            applyFreshDeck(freshDeck);
+          } catch { /* network failure – leave optimistic state */ }
         }
       })();
     }
@@ -270,59 +307,91 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
     return getZoneSnapshot(zoneKey)?.find(c => c.scryfallId === scryfallId) || null;
   }, [activeId, localCards, localSideboard, localStartInPlay]);
 
-  const handleIncrement = async (scryfallId, zoneKey) => {
-    const apiZone = ZONES.find(z => z.key === zoneKey)?.apiKey;
-    getZoneSetter(zoneKey)(prev => prev.map(c =>
-      c.scryfallId === scryfallId ? { ...c, quantity: c.quantity + 1 } : c
-    ));
-    pendingRef.current += 1;
-    const reqId = pendingRef.current;
-    try {
-      const fresh = await deckAPI.addCardToDeck(currentDeck._id, scryfallId, apiZone, 1);
-      if (reqId === pendingRef.current) applyFreshDeck(fresh);
-    } catch {
-      if (reqId === pendingRef.current) applyFreshDeck(currentDeck);
-    }
-  };
+  /* ── Quantity mutations — serialised per card ── */
 
-  const handleDecrement = async (scryfallId, zoneKey) => {
+  const handleIncrement = useCallback((scryfallId, zoneKey) => {
     const apiZone = ZONES.find(z => z.key === zoneKey)?.apiKey;
-    getZoneSetter(zoneKey)(prev => prev.map(c =>
-      c.scryfallId === scryfallId ? { ...c, quantity: c.quantity - 1 } : c
-    ));
-    pendingRef.current += 1;
-    const reqId = pendingRef.current;
-    try {
-      const fresh = await deckAPI.removeCardFromDeck(currentDeck._id, scryfallId, apiZone);
-      if (reqId === pendingRef.current) applyFreshDeck(fresh);
-    } catch {
-      if (reqId === pendingRef.current) applyFreshDeck(currentDeck);
-    }
-  };
+    const cardKey = `${zoneKey}:${scryfallId}`;
 
-  const handleRemoveAll = async (scryfallId, zoneKey) => {
+    // Optimistic update (immediate, outside the queue)
+    getZoneSetter(zoneKey)(prev =>
+      prev.map(c => c.scryfallId === scryfallId ? { ...c, quantity: c.quantity + 1 } : c)
+    );
+
+    enqueue(cardKey, async () => {
+    const deckId = currentDeckRef.current._id;
+    try {
+      await deckAPI.addCardToDeck(deckId, scryfallId, apiZone, 1);
+      // removed applyFreshDeck on success — trust optimistic update
+    } catch (err) {
+      console.warn(`[Inc] ✗ API failed for ${scryfallId}`, err);
+      try {
+        const fresh = await deckAPI.getDeckById(deckId);
+        console.log(`[Inc] ↩ rolling back ${scryfallId} via re-fetch`);
+        applyFreshDeck(fresh);
+      } catch { /* leave optimistic state */ }
+    }
+  });
+  }, [enqueue, applyFreshDeck, getZoneSetter]);
+
+  const handleDecrement = useCallback((scryfallId, zoneKey) => {
     const apiZone = ZONES.find(z => z.key === zoneKey)?.apiKey;
+    const cardKey = `${zoneKey}:${scryfallId}`;
+
+    getZoneSetter(zoneKey)(prev =>
+      prev.map(c => c.scryfallId === scryfallId ? { ...c, quantity: c.quantity - 1 } : c)
+    );
+
+    enqueue(cardKey, async () => {
+    const deckId = currentDeckRef.current._id;
+    try {
+      await deckAPI.removeCardFromDeck(deckId, scryfallId, apiZone);
+      // removed applyFreshDeck on success — trust optimistic update
+    } catch (err) {
+      console.warn(`[Dec] ✗ API failed for ${scryfallId}`, err);
+      try {
+        const fresh = await deckAPI.getDeckById(deckId);
+        console.log(`[Dec] ↩ rolling back ${scryfallId} via re-fetch`);
+        applyFreshDeck(fresh);
+      } catch { /* leave optimistic state */ }
+    }
+  });
+  }, [enqueue, applyFreshDeck, getZoneSetter]);
+
+  const handleRemoveAll = useCallback((scryfallId, zoneKey) => {
+    const apiZone = ZONES.find(z => z.key === zoneKey)?.apiKey;
+    const cardKey = `${zoneKey}:${scryfallId}`;
+
+    // Capture quantity now, before the optimistic removal wipes it.
     const card = getZoneSnapshot(zoneKey).find(c => c.scryfallId === scryfallId);
     if (!card) return;
+    const qty = card.quantity;
 
     getZoneSetter(zoneKey)(prev => prev.filter(c => c.scryfallId !== scryfallId));
-    pendingRef.current += 1;
-    const reqId = pendingRef.current;
+
+    enqueue(cardKey, async () => {
+    const deckId = currentDeckRef.current._id;
     try {
-      await deckAPI.removeCardFromDeck(currentDeck._id, scryfallId, apiZone, card.quantity);
-      const fresh = await deckAPI.getDeckById(currentDeck._id);
-      if (reqId === pendingRef.current) applyFreshDeck(fresh);
-    } catch {
-      if (reqId === pendingRef.current) applyFreshDeck(currentDeck);
+      await deckAPI.removeCardFromDeck(deckId, scryfallId, apiZone, qty);
+      // removed applyFreshDeck on success — trust optimistic update
+    } catch (err) {
+      console.warn(`[Remove] ✗ API failed for ${scryfallId}`, err);
+      try {
+        const fresh = await deckAPI.getDeckById(deckId);
+        console.log(`[Remove] ↩ rolling back ${scryfallId} via re-fetch`);
+        applyFreshDeck(fresh);
+      } catch { /* leave optimistic state */ }
     }
-  };
+  });
+  }, [enqueue, applyFreshDeck, getZoneSetter, getZoneSnapshot]);
+
+  /* ── Other handlers ── */
 
   const handleAddCard = async (card) => {
     try {
       const fresh = await deckAPI.addCardToDeck(currentDeck._id, card.scryfallId, 'mainDeck', 1);
       applyFreshDeck(fresh);
-    } catch {
-    }
+    } catch { /* silent */ }
   };
 
   const handleSearch = async () => {
@@ -331,8 +400,7 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
     try {
       const results = await cardAPI.searchCards(searchTerm);
       setSearchResults(results);
-    } catch {
-    } finally {
+    } catch { /* silent */ } finally {
       setIsSearching(false);
     }
   };
@@ -342,29 +410,45 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
       const fresh = await deckAPI.updateDeck(currentDeck._id, { format: newFormat });
       setDeckFormat(newFormat);
       applyFreshDeck(fresh);
-    } catch {
-    }
+    } catch { /* silent */ }
   };
 
   const handleImportDeck = async () => {
     if (!importText.trim()) return;
     setIsImporting(true);
     setImportErrors([]);
+
+    // Count lines so we can show "Importing 23 cards..."
+    const lineCount = importText.trim().split('\n').filter(l => l.trim()).length;
+    setImportProgress({ current: 0, total: lineCount });
+
     try {
       const results = await deckAPI.importDeck(currentDeck._id, importText);
       applyFreshDeck(results.updatedDeck);
+
       const errors = [];
       if (results.invalidCards?.length)
-        results.invalidCards.forEach(n => errors.push({ line: n, error: 'Card not found in Scryfall database' }));
+          results.invalidCards.forEach(n =>
+              errors.push({ line: n, error: 'Card not found in Scryfall database' })
+          );
       if (results.failedCards?.length)
-        results.failedCards.forEach(n => errors.push({ line: n, error: 'Failed to add card to deck' }));
+          results.failedCards.forEach(n =>
+              errors.push({ line: n, error: 'Failed to add card to deck' })
+          );
       setImportErrors(errors);
-      setImportText('');
-      setShowImport(false);
+
+      if (errors.length === 0) {
+          setImportText('');
+          setShowImport(false);
+      }
     } catch (err) {
-      setImportErrors([{ line: 'Import failed', error: err.response?.data?.message || err.message }]);
+        setImportErrors([{
+            line: 'Import failed',
+            error: err.response?.data?.message || err.message
+        }]);
     } finally {
-      setIsImporting(false);
+        setIsImporting(false);
+        setImportProgress({ current: 0, total: 0 });
     }
   };
 
@@ -420,16 +504,33 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
               </button>
               {showImport && (
                 <div className="import-container">
-                  <textarea
-                    className="import-textarea"
-                    placeholder={"3 Brainstorm\n4 Lightning Bolt\n20 Island"}
-                    value={importText}
-                    onChange={(e) => setImportText(e.target.value)}
-                    rows={6}
-                  />
-                  <button className="import-button" onClick={handleImportDeck} disabled={isImporting || !importText.trim()}>
-                    {isImporting ? 'Importing…' : 'Import'}
-                  </button>
+                    <textarea
+                        className="import-textarea"
+                        placeholder={"3 Brainstorm\n4 Lightning Bolt\n20 Island"}
+                        value={importText}
+                        onChange={(e) => setImportText(e.target.value)}
+                        rows={6}
+                        disabled={isImporting}
+                    />
+                    <button
+                        className="import-button"
+                        onClick={handleImportDeck}
+                        disabled={isImporting || !importText.trim()}
+                    >
+                        {isImporting ? (
+                            <span className="import-loading">
+                                <span className="import-spinner" />
+                                {importProgress.total > 0
+                                    ? `Looking up ${importProgress.total} cards…`
+                                    : 'Importing…'}
+                            </span>
+                        ) : 'Import'}
+                    </button>
+                    {isImporting && (
+                        <p className="import-note">
+                            This can take a moment — Scryfall lookups are batched but may take 5–15s for large lists.
+                        </p>
+                    )}
                 </div>
               )}
             </div>
@@ -528,3 +629,32 @@ const EditDeckModal = ({ isOpen, onClose, deck, onUpdate, onDelete }) => {
 };
 
 export default EditDeckModal;
+
+
+/*
+ * ARCHITECTURE — EditDeckModal mutation model
+ *
+ * State is split across three local arrays (localCards, localSideboard,
+ * localStartInPlay) that mirror the server. All user actions apply an
+ * optimistic update to local state immediately, then fire an API call in
+ * the background.
+ *
+ * Per-card serial queue (useCardQueue)
+ *   Each card owns a Promise chain keyed by "zone:scryfallId". Mutations on
+ *   the same card are appended to its chain so they always execute
+ *   one-at-a-time. Different cards run concurrently. On success the
+ *   optimistic state is trusted. On failure a getDeckById re-fetch is issued
+ *   and applyFreshDeck reconciles local state back to server truth via
+ *   mergeZone, which preserves local ordering while patching quantities.
+ *
+ * Known limitation — rollback re-fetch races
+ *   When multiple cards fail simultaneously each fires its own getDeckById.
+ *   These responses can land out of order and each calls applyFreshDeck,
+ *   meaning an earlier response can overwrite a later one. This is visible
+ *   in logs as a rollback applying before its enqueue appears, or
+ *   applyFreshDeck running with a stale card count. The happy path (no API
+ *   errors) is not affected since success no longer triggers a re-fetch.
+ */
+
+
+//TODO Dual faced cards don't show up when looking up one of the faces

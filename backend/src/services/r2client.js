@@ -117,3 +117,12 @@ module.exports = {
     batchFetchCardsFromR2,
     cardExistsInR2,
 };
+
+
+
+
+
+//HI TODO BELOW:
+//do OA's (hopefully all)
+//project (plan out first)
+//look portfolios
