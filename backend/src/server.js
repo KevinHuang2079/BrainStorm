@@ -29,6 +29,10 @@ app.use('/api/card', cardRoutes);
 app.use('/api/deck', deckRoutes);
 app.use('/api/game', gameRoutes);
 
+app.get('/api/health', (req, res) => {
+  res.status(200).send('ok');
+});
+
 const httpServer = http.createServer(app);
 
 const corsOrigin =
@@ -53,8 +57,4 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server and socket running on port ${PORT}`);
   console.log('Socket.IO CORS origin:', corsOrigin);
   console.log('NODE_ENV:', process.env.NODE_ENV); 
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).send('ok');
 });
