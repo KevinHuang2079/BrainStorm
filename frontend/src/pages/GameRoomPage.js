@@ -50,6 +50,10 @@ const GameRoomPage = () => {
         console.log('playerStates', playerStates);
     })
 
+    const handleActivityReset = () => {
+        resetActivityTimer(); // clears the warning UI for everyone
+    };
+
     const stripCardForStorage = useCallback((card) => {
         if (!card) return card;
         
@@ -894,6 +898,7 @@ const GameRoomPage = () => {
         socket.on('game:diceRolled', handleDiceRolled);
         socket.on('game:inactivityWarning', handleInactivityWarning);
         socket.on('game:closedDueToInactivity', handleGameClosed);
+        socket.on('game:activityReset', handleActivityReset);
         
         // const handleConnect = () => {
         //     socket.emit('game:join', { gameId });
@@ -931,6 +936,7 @@ const GameRoomPage = () => {
             socket.off('game:inactivityWarning', handleInactivityWarning);
             socket.off('game:closedDueToInactivity', handleGameClosed);
             socket.off('connect', handleConnect);
+            socket.off('game:activityReset', handleActivityReset);
             
             if (syncTimeoutRef.current) {
                 clearTimeout(syncTimeoutRef.current);
@@ -1277,6 +1283,7 @@ export default GameRoomPage;
 // Right now the system has no answer to the question: "If two clients disagree about the battlefield, who is correct and how do we fix it?"
 // There's no checksum, no sequence number, no canonical state comparison, and no reconciliation path. Divergence is silent and permanent until someone refreshes.
 // need state consistency guarantees.
+// if there is a divergence tracked by seq numbers and other stuff maybe then we revert back everyone to a stable state. 
 
 //issue:
 // submenu for cards can clip outside the view port

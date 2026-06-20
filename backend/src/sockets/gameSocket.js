@@ -169,6 +169,7 @@ module.exports = (io) => {
         // sees the correct handle regardless of when it's called.
         const timers = { warningTimer: null, closeTimer: null };
         gameActivityTimers.set(gameId, timers);
+        io.to(`game:${gameId}`).emit('game:activityReset');
 
         timers.warningTimer = setTimeout(() => {
             console.log(`[INACTIVITY] Warning fired for game ${gameId}`);

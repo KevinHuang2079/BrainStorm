@@ -1,16 +1,35 @@
+import { useState,useEffect,useRef } from 'react';
 import DeckList from '../components/HomePage/DeckList/DeckList';
 import GameList from '../components/HomePage/MatchList/GameList';
 import HomeBackground from '../components/HomePage/HomeBackground';
 import { authAPI, getCurrentUser } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
-
 export default function HomePage() {
+  const isMobile = () => window.innerWidth <= 768;
+  const [showMobileBanner, setShowMobileBanner] = useState(isMobile());
+  const dismissed = useRef(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (!dismissed.current) setShowMobileBanner(isMobile());
+      else setShowMobileBanner(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleDismiss = () => {
+    dismissed.current = true;
+    setShowMobileBanner(false);
+  };
+
   const navigate = useNavigate();
   const handleLogout = async () => {
     await authAPI.logout();
     navigate('/login');
   };
+  
   return (
     <>
       {/* Google Fonts - Cinzel (display) + Crimson Text (body) */}
@@ -216,12 +235,47 @@ export default function HomePage() {
         .delay-1 { animation-delay: 0.1s; }
         .delay-2 { animation-delay: 0.25s; }
         .delay-3 { animation-delay: 0.4s; }
+        .mobile-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          background: #3a3a3a;
+          color: #d1d1d1;
+          font-family: 'Crimson Text', serif;
+          font-size: 0.85rem;
+          padding: 10px 14px;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+        }
+
+        .mobile-banner-dismiss {
+          background: transparent;
+          border: 1px solid #5a5a5a;
+          color: #b0b0b0;
+          font-size: 0.75rem;
+          padding: 4px 10px;
+          cursor: pointer;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
       `}</style>
 
       <HomeBackground/>
 
+      {/* Mobile Warning/Disclaimer */}
+      {showMobileBanner && (
+      <div className="mobile-banner">
+        <span>For the best experience, try this on desktop.</span>
+        <button className="mobile-banner-dismiss" onClick={() => setShowMobileBanner(false)}>
+          Yeah whatever
+        </button>
+      </div>
+    )}
+
       {/* Sticky Navbar */}
-      <nav className="mtg-navbar fade-up">
+      <nav className="mtg-navbar fade-up" style={{ top: showMobileBanner ? '41px' : '0' }}>
         <div className="mtg-navbar-rune">
           <div className="navbar-diamond" />
           <span className="mtg-navbar-title">BRAINSTORM</span>

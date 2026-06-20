@@ -7,6 +7,7 @@ import '../../styles/BattleField.css';
 import TurnIndicator from './TurnIndicator';
 import { Copy } from 'lucide-react';
 import OpponentCardActionsMenu from './OpponentCardActionsMenu';
+import OpponentHandComponent from './OpponentHandComponent';
 
 import {
     DndContext,
@@ -358,7 +359,7 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
     const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
     const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
     const [cardZIndices, setCardZIndices] = useState({});
-    const zIndexCounterRef = useRef(1);
+    const zIndexCounterRef = useRef(51);
     
     const [opponentDimensions, setOpponentDimensions] = useState({});
     const [quadrantDimensions, setQuadrantDimensions] = useState({});
@@ -387,7 +388,7 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
 
             myBattlefield.forEach(card => {
                 if (!(card._id in updated)) {
-                    updated[card._id] = card.zIndex || zIndexCounterRef.current++;
+                    updated[card._id] = Math.max(51, card.zIndex || 0) || zIndexCounterRef.current++;
                     hasChanges = true;
                 }
             });
@@ -609,13 +610,14 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
                             return (
                                 <div key={player._id} className={`quadrant quadrant-${idx + 1}`}>
                                     <div className='quadrant-label'>{player.username}</div>
+                                    <OpponentHandComponent hand={player.hand ?? []} />
                                     <div
                                         ref={el => quadrantRefs.current[player._id] = el}
                                         className='quadrant-cards'
                                     >
                                         {(player.battlefield || []).map(card => {
                                             const position = normalizeCardPosition(card, dims);
-                                            const zIndex = card.zIndex || 1;
+                                            const zIndex = Math.max(100, card.zIndex || 1);
                                             return (
                                                 <StaticCard
                                                     key={card._id}
@@ -648,13 +650,14 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
                         return (
                             <div key={player._id} className='opponent-board'>
                                 <div className='opponent-label'>{player.username}</div>
+                                <OpponentHandComponent hand={player.hand ?? []} />
                                 <div
                                     ref={el => opponentRefs.current[player._id] = el}
                                     style={{ position: 'relative', width: '100%', height: '100%' }}
                                 >
                                     {(player.battlefield || []).map(card => {
                                         const position = normalizeCardPosition(card, dims);
-                                        const zIndex = card.zIndex || 1;
+                                        const zIndex = Math.max(100, card.zIndex || 1);
                                         return (
                                             <StaticCard
                                                 key={card._id}
