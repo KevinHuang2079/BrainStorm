@@ -653,6 +653,15 @@ module.exports = (io) => {
 
                 let t = Date.now();
                 const game = await findGameForPlayer(gameId, socket.userId);
+                console.log('[SAVE STATE] existing savedState keys:', Object.keys(game.savedState || {}));
+                console.log('[SAVE STATE] existing entry for sender:', {
+                    playerId: socket.userId,
+                    lastUpdated: game.savedState[socket.userId]?.lastUpdated,
+                    asMs: game.savedState[socket.userId]?.lastUpdated 
+                        ? new Date(game.savedState[socket.userId].lastUpdated).getTime() 
+                        : null
+                });
+                console.log('[SAVE STATE] clientTimestamp:', timestamp);
                 const dbDuration = Date.now() - t;
 
                 if (!game.savedState) game.savedState = {};
@@ -663,28 +672,41 @@ module.exports = (io) => {
 
                 t = Date.now();
                 if (gameState) {
-                    for (const [pId, state] of Object.entries(gameState)) {
-                        if (isNewer(game.savedState[pId])) {
-                            game.savedState[pId] = {
-                                ...stripPlayerStateForStorage(state),
-                                lastUpdated: new Date(timestamp)
-                            };
-                        }
-                    }
-                } else if (playerId && playerState) {
-                    if (playerId !== socket.userId) {
-                        return socket.emit('game:stateSaved', {
-                            success: false,
-                            error: 'Can only save your own state'
-                        });
-                    }
-                    if (isNewer(game.savedState[playerId])) {
-                        game.savedState[playerId] = {
-                            ...stripPlayerStateForStorage(playerState),
+                for (const [pId, state] of Object.entries(gameState)) {
+                    const existing = game.savedState[pId];
+                    const existingTs = existing?.lastUpdated 
+                        ? new Date(existing.lastUpdated).getTime() 
+                        : 0;
+                    
+                    console.log(`[SAVE STATE] ${pId}: incoming=${timestamp}, existing=${existingTs}, willSave=${timestamp >= existingTs}`);
+                    
+                    // Use >= not > so equal timestamps still save (handles same-ms edge case)
+                    if (timestamp >= existingTs) {
+                        game.savedState[pId] = {
+                            ...stripPlayerStateForStorage(state),
                             lastUpdated: new Date(timestamp)
                         };
                     }
                 }
+            } else if (playerId && playerState) {
+                if (playerId !== socket.userId) {
+                    return socket.emit('game:stateSaved', { success: false, error: 'Can only save your own state' });
+                }
+                
+                const existing = game.savedState[playerId];
+                const existingTs = existing?.lastUpdated 
+                    ? new Date(existing.lastUpdated).getTime() 
+                    : 0;
+                
+                console.log(`[SAVE STATE] ${playerId}: incoming=${timestamp}, existing=${existingTs}, willSave=${timestamp >= existingTs}`);
+                
+                if (timestamp >= existingTs) {
+                    game.savedState[playerId] = {
+                        ...stripPlayerStateForStorage(playerState),
+                        lastUpdated: new Date(timestamp)
+                    };
+                }
+            }
                 const stripDuration = Date.now() - t;
 
                 game.markModified('savedState');

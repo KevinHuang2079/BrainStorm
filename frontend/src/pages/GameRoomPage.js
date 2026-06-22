@@ -654,6 +654,14 @@ const GameRoomPage = () => {
             const processStart = Date.now();
             setGame(gameData);
 
+
+
+            // On reconnect:
+            // Server sends DB snapshot for everyone
+            // Other players send their own live state
+            // Reconnecting player merges:
+            // DB baseline
+            // Peer updates
             //restore player states
             setPlayerStates(prev => {
                 const updated = { ...prev };
@@ -721,6 +729,11 @@ const GameRoomPage = () => {
             });
         };
 
+        
+
+        // On disconnect:
+        // Server uses existing savedState from DB
+        // Sends it to others as a frozen snapshot
         const handlePlayerDisconnected = ({ game: updatedGame, playerId, savedState }) => {
             setGame(updatedGame);
             
@@ -1040,27 +1053,33 @@ const GameRoomPage = () => {
             action: actionData.action,
             data: actionData.data || actionData
         });
-
-        setPlayerStates(current => {
-            const stripped = stripPlayerStateForStorage(current[user._id]);
-            socket.emit('game:saveState', {
-                gameId,
-                playerId: user._id,
-                playerState: stripped,
-                clientTimestamp: Date.now()
+        // FIX: Read state synchronously right after handleLocalAction updates it.
+        // handleLocalAction calls setPlayerStates which schedules an update —
+        // we can't read the post-action state synchronously here.
+        // Instead, defer the save one tick so React has flushed the state update.
+        setTimeout(() => {
+            setPlayerStates(current => {
+                const myState = current[user._id];
+                if (!myState) return current;
+                
+                const stripped = stripPlayerStateForStorage(myState);
+                const saveTimestamp = Date.now();
+                
+                roundTripTimers.current['game:saveState'] = saveTimestamp;
+                socket.emit('game:saveState', {
+                    gameId,
+                    playerId: user._id,
+                    playerState: stripped,
+                    clientTimestamp: saveTimestamp
+                });
+                return current; // no mutation, just reading
             });
-            return current;
-        });
+        }, 0);
+
         setChatLog(current => {
-            socket.emit('game:saveChatLog', {
-                gameId,
-                chatLog: current
-            });
+            socket.emit('game:saveChatLog', { gameId, chatLog: current });
             return current;
         });
-
-        const emitDuration = Date.now() - actionStart;
-        console.log(`[CLIENT PERF] game:action ${actionData.action} emit: ${emitDuration}ms`);
     }, [socket, gameId, game, user, resetActivityTimer, handleLocalAction, stripPlayerStateForStorage]);
 
     const handleRepositionCard = useCallback((cardId, newPosition, newZIndex) => {
@@ -1243,18 +1262,11 @@ export default GameRoomPage;
 
 
 
-//unit tests (make sure to test more than 2 players game page rendering.)
-//ship and deploy updates 
-//advertise (reddit and discords?, idk)
-
-
 
 //move analyzer (eventually, fix up chat log first)
 
 
 
-//BUG: leaving won't delete player state for the player that left
-//FIXED: Frontend socket hanlding this user leave would save state before leaving, and also backend socket handler wouldn't delete a leaving users save state
 
 //BUG: joining player has a populated state but not rendered => The opponent area rendered only when both conditions were true simultaneously: Object.keys(playerStates).length === 2 && playerCount === 2 (battlefield.js)
 //ROOTCAUSE: playerStates and playerCount come from two different state objects — playerStates (updated via socket sync) and game (updated via setGame). When p2 joins, their state arrives via game:syncState → handleStateUpdate, which updates playerStates but not game. So playerCount (from game.players.length) was still 1 while playerStates already had 2 entries — the condition was never satisfied, so the opponent area never mounted.
@@ -1271,21 +1283,9 @@ export default GameRoomPage;
 //also used a has joined flag per mounting of the socket and component so that only one connect event/game:join event per mount
 //websocket context also changed socket state to socket ref to get stable across re-renders cause by isConnected/error state changes 
 
-//bug: Concurrent sessions (multiple tabs) for the same user do not maintain synchronized game state.
-//state reconciliation only occurs after a subsequent game event (e.g., another player action or deck selection).
 
-//bug: inactive games aren't being closed out properly (still can join)
-//bug: same for alread active games
 
-//idk how being logged in on incognito on same account is working rn.
 
-//issue:
-// Right now the system has no answer to the question: "If two clients disagree about the battlefield, who is correct and how do we fix it?"
-// There's no checksum, no sequence number, no canonical state comparison, and no reconciliation path. Divergence is silent and permanent until someone refreshes.
-// need state consistency guarantees.
-// if there is a divergence tracked by seq numbers and other stuff maybe then we revert back everyone to a stable state. 
 
 //issue:
 // submenu for cards can clip outside the view port
-
-
