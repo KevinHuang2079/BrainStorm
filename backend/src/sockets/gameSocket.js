@@ -623,6 +623,38 @@ module.exports = (io) => {
         socket.on('game:saveState', async ({ gameId, playerId, playerState, gameState, clientTimestamp }, ack) => {
             const totalStart = Date.now();
             try {
+                // ── DIAGNOSTIC BLOCK — remove after confirming ──
+            console.log('[DIAG 1] socket exists:', !!socket, 'connected:', socket?.connected, 'id:', socket?.id);
+            console.log('[DIAG 2] gameId:', gameId, 'user._id:', user._id);
+
+            const myStateDiag = playerStatesRef.current[user._id];  // or playerStates[user._id] if you haven't added the ref yet
+            console.log('[DIAG 3] myState exists:', !!myStateDiag, 'keys:', myStateDiag ? Object.keys(myStateDiag) : 'N/A');
+            console.log('[DIAG 3b] zone lengths:', {
+                library: myStateDiag?.library?.length,
+                hand: myStateDiag?.hand?.length,
+                battlefield: myStateDiag?.battlefield?.length,
+            });
+
+            if (myStateDiag) {
+                const stripped = stripPlayerStateForStorage(myStateDiag);
+                console.log('[DIAG 4] stripped state:', JSON.stringify(stripped).slice(0, 200));
+                const saveTimestamp = Date.now();
+                console.log('[DIAG 5] about to emit game:saveState');
+                socket.emit('game:saveState', {
+                    gameId,
+                    playerId: user._id,
+                    playerState: stripped,
+                    clientTimestamp: saveTimestamp
+                }, (ack) => {
+                    // This ack callback fires if the server acknowledges — note the server
+                    // handler already calls `if (typeof ack === 'function') ack()` so this works
+                    console.log('[DIAG 6] server ack received:', ack);
+                });
+                console.log('[DIAG 7] emit call returned (synchronous past this point)');
+            } else {
+                console.log('[DIAG ERROR] myState is null/undefined — save skipped');
+            }
+            // ── END DIAGNOSTIC BLOCK ──
                 if (!socket.userId) return;
                 console.log('[SAVE STATE] received from:', socket.userId);
                 console.log('[SAVE STATE] has gameState?', !!gameState, 'has playerState?', !!playerState);
