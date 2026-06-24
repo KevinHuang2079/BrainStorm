@@ -43,6 +43,7 @@ const GameRoomPage = () => {
     const currentTurnNumberRef = useRef(0);
 
     const [railOpen, setRailOpen] = useState(true);
+    const isJoinedRef = useRef(false);
 
     
     
@@ -642,6 +643,9 @@ const GameRoomPage = () => {
         if (!socket || !gameId ) return;
         //Register ALL listeners FIRST, before any emit
         const handleGameJoined = (gameData) => {
+            const handleGameJoined = (gameData) => {
+                isJoinedRef.current = true; 
+            };
             console.log('[REJOIN] game:joined received');
             console.log('[REJOIN] savedState from server:', gameData.savedState);
             console.log('[REJOIN] my userId:', user._id);
@@ -1061,6 +1065,8 @@ const GameRoomPage = () => {
             setPlayerStates(current => {
                 const myState = current[user._id];
                 if (!myState) return current;
+
+                if (!isJoinedRef.current) return current;
                 
                 const stripped = stripPlayerStateForStorage(myState);
                 const saveTimestamp = Date.now();
