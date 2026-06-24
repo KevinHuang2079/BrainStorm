@@ -121,9 +121,28 @@ module.exports = (io) => {
 
     async function hydrateCardArray(cards) {
         if (!Array.isArray(cards) || cards.length === 0) return cards;
-        const scryfallIds = cards.filter(c => c?.scryfallId).map(c => c.scryfallId);
+        
+        const scryfallIds = [...new Set(
+            cards.filter(c => c?.scryfallId).map(c => c.scryfallId)
+        )];
         if (scryfallIds.length === 0) return cards;
+        
         const cardMap = await cardCache.batchFetch(scryfallIds);
+        
+        // Log cache hit rate so you can confirm hydration is working
+        const hits = scryfallIds.filter(id => cardMap[id]).length;
+        console.log(`[HYDRATE] ${hits}/${scryfallIds.length} cache hits`);
+        
+        // For any misses, attempt individual fetch (batchFetch may not fetch missing ones)
+        const misses = scryfallIds.filter(id => !cardMap[id]);
+        if (misses.length > 0) {
+            console.warn(`[HYDRATE] cache misses for ${misses.length} cards, fetching individually`);
+            await Promise.all(misses.map(async (id) => {
+                const data = await cardCache.fetch(id); // fetch() should hit Scryfall on miss
+                if (data) cardMap[id] = data;
+            }));
+        }
+        
         return cards.map(card =>
             card?.scryfallId && cardMap[card.scryfallId]
                 ? { ...cardMap[card.scryfallId], ...card, _id: card._id }
