@@ -719,7 +719,7 @@ module.exports = (io) => {
                 socket.emit('game:stateSaved', { success: true, timestamp: new Date(timestamp) });
                 console.log(`[PERF] game:saveState: DB=${dbDuration}ms, Strip=${stripDuration}ms, Save=${saveDuration}ms, TOTAL=${Date.now() - totalStart}ms`);
             } catch (err) {
-                console.error('Save state error:', err);
+                console.error('[SAVE STATE ERROR]', { gameId, userId: socket.userId, message: err.message, stack: err.stack });
                 socket.emit('game:stateSaved', { success: false, error: err.message });
             }
         });
