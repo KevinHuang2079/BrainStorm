@@ -44,7 +44,8 @@ const GameRoomPage = () => {
 
     const [railOpen, setRailOpen] = useState(true);
     const isJoinedRef = useRef(false);
-
+    const joinCountRef = useRef(0);
+    
     const handleActivityReset = () => {
         resetActivityTimer(); // clears the warning UI for everyone
     };
@@ -637,6 +638,10 @@ const GameRoomPage = () => {
         if (!socket || !gameId ) return;
         //Register ALL listeners FIRST, before any emit
         const handleGameJoined = (gameData) => {
+            console.log('[REJOIN] game:joined #', ++joinCountRef.current, 
+                'savedState keys:', Object.keys(gameData.savedState || {}),
+                'myEntry:', gameData.savedState?.[user._id] ? 'EXISTS' : 'MISSING'
+            );
             console.log('[REJOIN] game:joined received');
             console.log('[REJOIN] savedState from server:', gameData.savedState);
             console.log('[REJOIN] my userId:', user._id);
@@ -648,8 +653,7 @@ const GameRoomPage = () => {
 
             const processStart = Date.now();
             setGame(gameData);
-
-
+            isJoinedRef.current = true;
 
             setPlayerStates(prev => {
                 const updated = { ...prev };
@@ -761,6 +765,11 @@ const GameRoomPage = () => {
         };
         
         const handleStateUpdate = ({ gameState, senderId }) => { //peer sync 
+            console.log('[PEER SYNC] stateUpdate arrived, joinCount so far:', joinCountRef.current,
+                'from:', senderId,
+                'hand:', gameState[senderId]?.hand?.length,
+                'firstHandCard:', gameState[senderId]?.hand?.[0]?.name ?? gameState[senderId]?.hand?.[0]?.scryfallId ?? 'no card'
+            );
             console.log('[PEER SYNC] stateUpdate from', senderId, {
                 hand: gameState[senderId]?.hand?.length,
                 battlefield: gameState[senderId]?.battlefield?.length,
@@ -1077,6 +1086,7 @@ const GameRoomPage = () => {
                 const saveTimestamp = Date.now();
                 
                 roundTripTimers.current['game:saveState'] = saveTimestamp;
+                console.log('[SAVE STATE EMIT] isJoinedRef:', isJoinedRef.current, 'myState exists:', !!myState);
                 socket.emit('game:saveState', {
                     gameId,
                     playerId: user._id,
