@@ -45,12 +45,6 @@ const GameRoomPage = () => {
     const [railOpen, setRailOpen] = useState(true);
     const isJoinedRef = useRef(false);
 
-    
-    
-    useEffect(() => {
-        console.log('playerStates', playerStates);
-    })
-
     const handleActivityReset = () => {
         resetActivityTimer(); // clears the warning UI for everyone
     };
@@ -643,9 +637,6 @@ const GameRoomPage = () => {
         if (!socket || !gameId ) return;
         //Register ALL listeners FIRST, before any emit
         const handleGameJoined = (gameData) => {
-            const handleGameJoined = (gameData) => {
-                isJoinedRef.current = true; 
-            };
             console.log('[REJOIN] game:joined received');
             console.log('[REJOIN] savedState from server:', gameData.savedState);
             console.log('[REJOIN] my userId:', user._id);
@@ -660,19 +651,19 @@ const GameRoomPage = () => {
 
 
 
-            // On reconnect:
-            // Server sends DB snapshot for everyone
-            // Other players send their own live state
-            // Reconnecting player merges:
-            // DB baseline
-            // Peer updates
-            //restore player states
             setPlayerStates(prev => {
                 const updated = { ...prev };
 
                 gameData.players.forEach(player => {
                     const saved = gameData.savedState?.[player._id];
-                    if (saved) {
+                    // On reconnect:
+                    // Server sends DB snapshot for everyone
+                    // Other players send their own live state
+                    // Reconnecting player merges:
+                    // DB baseline
+                    // Peer updates
+                    //restore player states
+                    if (saved) { //if has a saved state, then restore, (reconnect)
                         // Spread ALL saved fields, not just zones
                         updated[player._id] = {
                             ...updated[player._id],  // keep anything already in state
@@ -680,7 +671,7 @@ const GameRoomPage = () => {
                             _id: player._id,
                             username: player.username,
                         };
-                    } else if (!updated[player._id]) {
+                    } else if (!updated[player._id]) { // else populate empty 
                         const startingLife = gameData.format === 'commander' ? 40 : 20;
                         updated[player._id] = {
                             _id: player._id,
@@ -709,8 +700,17 @@ const GameRoomPage = () => {
                         gameId,
                         gameState: { [user._id]: myState }
                     });
-                }   
+                }  
 
+                console.log('[REJOIN] playerStates after merge:', 
+                    Object.fromEntries(Object.entries(updated).map(([id, s]) => [
+                        id, { 
+                            hand: s.hand?.length, 
+                            battlefield: s.battlefield?.length,
+                            firstHandCard: s.hand?.[0]?.name ?? s.hand?.[0]?.scryfallId ?? 'no card'
+                        }
+                    ]))
+                );
 
                 return updated;
             });
@@ -736,7 +736,7 @@ const GameRoomPage = () => {
         
 
         // On disconnect:
-        // Server uses existing savedState from DB
+        // Servte frer uses existing savedStaom DB
         // Sends it to others as a frozen snapshot
         const handlePlayerDisconnected = ({ game: updatedGame, playerId, savedState }) => {
             setGame(updatedGame);
@@ -744,7 +744,7 @@ const GameRoomPage = () => {
             setPlayerStates(prev => ({
                 ...prev,
                 [playerId]: {
-                    ...savedState, //use server stored state
+                    ...savedState, //freeze dced player's state with server's stored state
                 }
             }));
         };
@@ -760,7 +760,12 @@ const GameRoomPage = () => {
             });
         };
         
-        const handleStateUpdate = ({ gameState, senderId }) => { //user recieves db's current state about them
+        const handleStateUpdate = ({ gameState, senderId }) => { //peer sync 
+            console.log('[PEER SYNC] stateUpdate from', senderId, {
+                hand: gameState[senderId]?.hand?.length,
+                battlefield: gameState[senderId]?.battlefield?.length,
+                firstHandCard: gameState[senderId]?.hand?.[0]?.name ?? gameState[senderId]?.hand?.[0]?.scryfallId ?? 'no card'
+            });
             setPlayerStates(prev => {
                 const updated = { ...prev };
                 // only accept a player's update about themselves
@@ -1295,3 +1300,4 @@ export default GameRoomPage;
 
 //issue:
 // submenu for cards can clip outside the view port
+

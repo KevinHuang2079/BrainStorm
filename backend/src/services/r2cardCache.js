@@ -107,7 +107,7 @@ class CardCache {
         if (stillMissing.length > 0) {
             console.log(`[CACHE MISS] ${stillMissing.length} cards not in R2, fetching from Scryfall`);
             try {
-                // getCardsBatch accepts scryfallIds — add this method to scryfallService (see below)
+                // getCardsBatch accepts scryfallIds 
                 const { found } = await withRetry(() =>
                     scryfallService.getCardsBatchByScryfallIds(stillMissing)
                 );

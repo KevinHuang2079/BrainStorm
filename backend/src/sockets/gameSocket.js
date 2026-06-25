@@ -121,28 +121,9 @@ module.exports = (io) => {
 
     async function hydrateCardArray(cards) {
         if (!Array.isArray(cards) || cards.length === 0) return cards;
-        
-        const scryfallIds = [...new Set(
-            cards.filter(c => c?.scryfallId).map(c => c.scryfallId)
-        )];
+        const scryfallIds = cards.filter(c => c?.scryfallId).map(c => c.scryfallId);
         if (scryfallIds.length === 0) return cards;
-        
-        const cardMap = await cardCache.batchFetch(scryfallIds);
-        
-        // Log cache hit rate so you can confirm hydration is working
-        const hits = scryfallIds.filter(id => cardMap[id]).length;
-        console.log(`[HYDRATE] ${hits}/${scryfallIds.length} cache hits`);
-        
-        // For any misses, attempt individual fetch (batchFetch may not fetch missing ones)
-        const misses = scryfallIds.filter(id => !cardMap[id]);
-        if (misses.length > 0) {
-            console.warn(`[HYDRATE] cache misses for ${misses.length} cards, fetching individually`);
-            await Promise.all(misses.map(async (id) => {
-                const data = await cardCache.fetch(id); // fetch() should hit Scryfall on miss
-                if (data) cardMap[id] = data;
-            }));
-        }
-        
+        const cardMap = await cardCache.batchFetch(scryfallIds); //scryfallids: hydrated card info
         return cards.map(card =>
             card?.scryfallId && cardMap[card.scryfallId]
                 ? { ...cardMap[card.scryfallId], ...card, _id: card._id }
@@ -151,7 +132,10 @@ module.exports = (io) => {
     }
 
     async function hydratePlayerState(playerState) {
-        if (!playerState || typeof playerState !== 'object') return playerState;
+        if (!playerState || typeof playerState !== 'object') {
+            console.log(`[BACKEND] Hydrate Player State not an object`);
+            return playerState;
+        }
         const zones = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'facedown', 'sideboard'];
         const hydrated = { ...playerState };
         for (const zone of zones) {
@@ -303,7 +287,7 @@ module.exports = (io) => {
         }));
 
         // ── game:join ────────────────────────────────────────────────────────────
-
+//todo understand how game join works (it emits after join from game list)
         socket.on('game:join', authenticated(socket, async ({ gameId }) => {
             const totalStart = Date.now();
             try {
@@ -322,10 +306,6 @@ module.exports = (io) => {
                 if (!isAlreadyPlayer && game.status === 'active')
                     return socket.emit('error', { message: 'Game has already started' });
 
-                // BUG FIX #5: Use atomic $addToSet to avoid the fetch-mutate-save
-                // race where two concurrent joins could overwrite each other. The
-                // old code called findByIdAndUpdate then saveAndPopulate(freshGame),
-                // meaning a second save() could clobber the first player's addition.
                 await Game.findByIdAndUpdate(gameId, {
                     $addToSet: { 
                         connectedPlayers: socket.userId,
@@ -376,7 +356,18 @@ module.exports = (io) => {
                     console.log(`[PERF] game:join hydration: ${Date.now() - t}ms`);
                 }
                 
-                console.log('BACKEND socket game:join event saved game:', gameObject);
+                console.log('[SERVER JOIN] emitting savedState snapshot:', 
+                    gameObject.savedState 
+                        ? Object.fromEntries(Object.entries(gameObject.savedState).map(([id, s]) => [
+                            id, { 
+                                library: s.library?.length, 
+                                hand: s.hand?.length, 
+                                battlefield: s.battlefield?.length,
+                                firstCard: s.hand?.[0]?.scryfallId ? 'hydrated' : s.hand?.[0] ? 'stripped' : 'empty'
+                            }
+                        ]))
+                        : 'null'
+                );
                 socket.emit('game:joined', gameObject);
 
                 if (!isAlreadyPlayer) {
