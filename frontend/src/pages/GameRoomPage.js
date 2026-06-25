@@ -776,12 +776,10 @@ const GameRoomPage = () => {
                 firstHandCard: gameState[senderId]?.hand?.[0]?.name ?? gameState[senderId]?.hand?.[0]?.scryfallId ?? 'no card'
             });
             setPlayerStates(prev => {
-                const updated = { ...prev };
-                // only accept a player's update about themselves
-                if (senderId !== user._id && gameState[senderId]) {
-                    updated[senderId] = gameState[senderId];
-                }
-                return updated;
+                // Never overwrite your own state with a peer's view of you
+                if (senderId === user._id) return prev;
+                if (!gameState[senderId]) return prev;
+                return { ...prev, [senderId]: gameState[senderId] };
             });
         };
 
