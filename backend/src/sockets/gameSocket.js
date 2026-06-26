@@ -768,7 +768,7 @@ module.exports = (io) => {
                         game: freshGame,
                         playerId: socket.userId,
                         username: socket.username,
-                        savedState: freshGame.savedState?.[socket.userId]
+                        // savedState: freshGame.savedState?.[socket.userId]
                     });
                 }
                 console.log(`[PERF] disconnect update games: ${Date.now() - t}ms`);
