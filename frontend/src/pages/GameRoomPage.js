@@ -45,9 +45,10 @@ const GameRoomPage = () => {
     const [railOpen, setRailOpen] = useState(true);
     const isJoinedRef = useRef(false);
     const joinCountRef = useRef(0);
+
     
     const handleActivityReset = () => {
-        resetActivityTimer(); // clears the warning UI for everyone
+        resetActivityTimer();
     };
 
     const stripCardForStorage = useCallback((card) => {
@@ -84,7 +85,6 @@ const GameRoomPage = () => {
             }
         }
 
-        // Explicitly carry non-zone fields through
         return {
             ...stripped,
             lifeTotal: playerState.lifeTotal,
@@ -101,6 +101,10 @@ const GameRoomPage = () => {
     useEffect(() => {
         scrollToBottom();
     }, []);
+
+    useEffect(() => {
+        console.log(playerStates);
+    },[playerStates])
 
     useEffect(() => {
         if (!game) return;
@@ -497,8 +501,7 @@ const GameRoomPage = () => {
                 }
 
                 case 'cloneOpponentCard': {
-                    //clone onto this users battlefield
-                    const actingPlayerId = playerId; // the player who triggered the action
+                    const actingPlayerId = playerId;
                     const actingState = updated[actingPlayerId];
                     if (!actingState) break;
 
@@ -613,14 +616,13 @@ const GameRoomPage = () => {
                     break;
                     
                 default : 
-                    console.log('penisbob:', action);
+                    console.log('unhandled action:', action);
             }
 
             return updated;
         });
     }, [game?.format, shuffleArray]);
 
-    //
     const handleLocalActionRef = useRef(handleLocalAction);
     useEffect(() => {
         handleLocalActionRef.current = handleLocalAction;
@@ -628,54 +630,42 @@ const GameRoomPage = () => {
 
     // -- socket handling -- 
     useEffect(() => {
-        //temp
         console.log('[GAME EFFECT] fired', { 
             hasSocket: !!socket, 
             socketConnected: socket?.connected,
             gameId 
         });
 
-        if (!socket || !gameId ) return;
-        //Register ALL listeners FIRST, before any emit
+        if (!socket || !gameId) return;
+
         const handleGameJoined = (gameData) => {
             console.log('[REJOIN] game:joined #', ++joinCountRef.current, 
                 'savedState keys:', Object.keys(gameData.savedState || {}),
                 'myEntry:', gameData.savedState?.[user._id] ? 'EXISTS' : 'MISSING'
             );
-            console.log('[REJOIN] game:joined received');
-            console.log('[REJOIN] savedState from server:', gameData.savedState);
-            console.log('[REJOIN] my userId:', user._id);
-            console.log('[REJOIN] my savedState entry:', gameData.savedState?.[user._id]);
-            console.log('[REJOIN] players in game:', gameData.players.map(p => p._id));
+
             const joinDuration = Date.now() - roundTripTimers.current['game:join'];
             console.log(`[CLIENT PERF] game:join round-trip: ${joinDuration}ms`);
             delete roundTripTimers.current['game:join'];
 
-            const processStart = Date.now();
+            //set local game state
             setGame(gameData);
             isJoinedRef.current = true;
 
+            //set local player states 
             setPlayerStates(prev => {
                 const updated = { ...prev };
 
                 gameData.players.forEach(player => {
                     const saved = gameData.savedState?.[player._id];
-                    // On reconnect:
-                    // Server sends DB snapshot for everyone
-                    // Other players send their own live state
-                    // Reconnecting player merges:
-                    // DB baseline
-                    // Peer updates
-                    //restore player states
-                    if (saved) { //if has a saved state, then restore, (reconnect)
-                        // Spread ALL saved fields, not just zones
+                    if (saved) { //check for saved state
                         updated[player._id] = {
-                            ...updated[player._id],  // keep anything already in state
-                            ...saved,                // restore everything from DB
+                            ...updated[player._id],
+                            ...saved,
                             _id: player._id,
                             username: player.username,
                         };
-                    } else if (!updated[player._id]) { // else populate empty 
+                    } else if (!updated[player._id]) { //else initiate empty player
                         const startingLife = gameData.format === 'commander' ? 40 : 20;
                         updated[player._id] = {
                             _id: player._id,
@@ -691,43 +681,20 @@ const GameRoomPage = () => {
                         };
                     }
                 });
-                //restore chat logs
+
                 const savedLog = gameData.savedState?.['_chatLog'];
                 if (savedLog && Array.isArray(savedLog)) {
                     setChatLog(savedLog);
                 }
-
-                // immediately broadcast this user's state after state is resolved, so other players can see you
-                const myState = updated[user._id];
-                if (myState) {
-                    socket.emit('game:syncState', {
-                        gameId,
-                        gameState: { [user._id]: myState }
-                    });
-                }  
-
-                console.log('[REJOIN] playerStates after merge:', 
-                    Object.fromEntries(Object.entries(updated).map(([id, s]) => [
-                        id, { 
-                            hand: s.hand?.length, 
-                            battlefield: s.battlefield?.length,
-                            firstHandCard: s.hand?.[0]?.name ?? s.hand?.[0]?.scryfallId ?? 'no card'
-                        }
-                    ]))
-                );
-
                 return updated;
             });
-
-            const processDuration = Date.now() - processStart;
-            console.log(`[CLIENT PERF] game:joined processing: ${processDuration}ms`);
         };
 
         const handlePlayerJoined = (updatedGame) => {
             setGame(updatedGame);
         };
 
-        const handlePlayerLeft = ({ game: updatedGame, playerId, username }) => {
+        const handlePlayerLeft = ({ game: updatedGame, playerId }) => {
             setGame(updatedGame);
             setPlayerStates(prev => {
                 const updated = { ...prev };
@@ -737,81 +704,45 @@ const GameRoomPage = () => {
             });
         };
 
-        
-
-        // On disconnect:
-        // Servte frer uses existing savedStaom DB
-        // Sends it to others as a frozen snapshot
         const handlePlayerDisconnected = ({ game: updatedGame, playerId, savedState }) => {
             setGame(updatedGame);
-            
             setPlayerStates(prev => ({
                 ...prev,
                 [playerId]: {
-                    ...savedState, //freeze dced player's state with server's stored state
+                    ...savedState,
                 }
             }));
         };
 
-        const handleRequestSync = () => { //user gives its current state
-            setPlayerStates(currentStates => {
-                socket.emit('game:syncState', {
-                    gameId,
-                    // only send your own state, not your view of others
-                    gameState: { [user._id]: currentStates[user._id] }
-                });
-                return currentStates;
-            });
-        };
-        
-        const handleStateUpdate = ({ gameState, senderId }) => { //peer sync 
-            console.log('[PEER SYNC] stateUpdate arrived, joinCount so far:', joinCountRef.current,
-                'from:', senderId,
-                'hand:', gameState[senderId]?.hand?.length,
-                'firstHandCard:', gameState[senderId]?.hand?.[0]?.name ?? gameState[senderId]?.hand?.[0]?.scryfallId ?? 'no card'
-            );
-            console.log('[PEER SYNC] stateUpdate from', senderId, {
-                hand: gameState[senderId]?.hand?.length,
-                battlefield: gameState[senderId]?.battlefield?.length,
-                firstHandCard: gameState[senderId]?.hand?.[0]?.name ?? gameState[senderId]?.hand?.[0]?.scryfallId ?? 'no card'
-            });
-            setPlayerStates(prev => {
-                // Never overwrite your own state with a peer's view of you
-                if (senderId === user._id) return prev;
-                if (!gameState[senderId]) return prev;
-                return { ...prev, [senderId]: gameState[senderId] };
-            });
-        };
+        // ── game:stateSnapshot ────────────────────────────────────────────────────
+        // Authoritative full-state push from the server after every DB write.
+        // Replaces the old game:requestSync → game:syncState → game:stateUpdate
+        // peer-to-peer flow. We apply every player's state except our own — our
+        // local optimistic update is always fresher than the round-tripped DB value.
+        const handleStateSnapshot = ({ savedState }) => {
+            if (!savedState) return;
 
-        // const handleStateUpdate = ({ gameState, senderId }) => {
-        //     setPlayerStates(prev => {
-        //         if (senderId === user._id || !gameState[senderId]) return prev;
-                
-        //         const incomingState = gameState[senderId];
-        //         return {
-        //             ...prev,
-        //             [senderId]: {
-        //                 ...incomingState,
-        //                 // Force new array references for all zones so memoized components re-render
-        //                 //before it was 
-        //                 library:     [...(incomingState.library     || [])],
-        //                 hand:        [...(incomingState.hand        || [])],
-        //                 battlefield: [...(incomingState.battlefield || [])],
-        //                 graveyard:   [...(incomingState.graveyard   || [])],
-        //                 exile:       [...(incomingState.exile       || [])],
-        //                 facedown:    [...(incomingState.facedown    || [])],
-        //                 sideboard:   [...(incomingState.sideboard   || [])],
-        //             }
-        //         };
-        //     });
-        // };
+            setPlayerStates(prev => {
+                const updated = { ...prev };
+                for (const [playerId, state] of Object.entries(savedState)) {
+                    if (playerId === '_chatLog') continue; // chat handled separately
+                    if (playerId === user._id) continue;  // never overwrite our own optimistic state
+                    if (!state) continue;
+                    updated[playerId] = {
+                        ...state,
+                        _id: state._id ?? playerId,
+                        username: updated[playerId]?.username ?? state.username,
+                    };
+                }
+                return updated;
+            });
+        };
 
         const handleGameActionFromSocket = (payload) => {
             const processStart = Date.now();
 
             handleLocalActionRef.current(payload);
 
-            // Append to chat log (remote players only — local handled in handleGameAction)
             if (payload.playerId !== user._id) {
                 setChatLog(prev => [...prev, {
                     type: 'action',
@@ -824,8 +755,7 @@ const GameRoomPage = () => {
                 }]);
             }
 
-            const processDuration = Date.now() - processStart;
-            console.log(`[CLIENT PERF] game:action ${payload.action} processing: ${processDuration}ms`);
+            console.log(`[CLIENT PERF] game:action ${payload.action} processing: ${Date.now() - processStart}ms`);
         };
 
         const handleTurnChanged = ({ currentTurn, username }) => {
@@ -901,7 +831,7 @@ const GameRoomPage = () => {
                 }
             };
 
-            tick(); // set immediately, don't wait 1s for first render
+            tick();
             inactivityCountdownIntervalRef.current = setInterval(tick, 1000);
         };
 
@@ -913,14 +843,11 @@ const GameRoomPage = () => {
         };
         
         // -- listeners -- 
-        socket.on('game:joined', handleGameJoined); //this player
-        socket.on('game:playerJoined', handlePlayerJoined); //other player
-        socket.on('game:playerLeft', handlePlayerLeft); //other player leave
-        socket.on('game:playerDisconnected', handlePlayerDisconnected); //other player redirected
-
-        socket.on('game:requestSync', handleRequestSync); //backend requests sync
-        socket.on('game:stateUpdate', handleStateUpdate); //backend provides state
-         
+        socket.on('game:joined', handleGameJoined);
+        socket.on('game:playerJoined', handlePlayerJoined);
+        socket.on('game:playerLeft', handlePlayerLeft);
+        socket.on('game:playerDisconnected', handlePlayerDisconnected);
+        socket.on('game:stateSnapshot', handleStateSnapshot);   // ← new authoritative handler
         socket.on('game:action', handleGameActionFromSocket);
         socket.on('game:turnChanged', handleTurnChanged);
         socket.on('game:started', handleGameStarted);
@@ -928,27 +855,18 @@ const GameRoomPage = () => {
         socket.on('game:inactivityWarning', handleInactivityWarning);
         socket.on('game:closedDueToInactivity', handleGameClosed);
         socket.on('game:activityReset', handleActivityReset);
-        
-        // const handleConnect = () => {
-        //     socket.emit('game:join', { gameId });
-        // };
-        // socket.on('connect', handleConnect);
-        // if (socket.connected) {
-        //     handleConnect();
-        // }
 
         let hasJoined = false;
         const handleConnect = () => {
             if (hasJoined) return;
             hasJoined = true;
             roundTripTimers.current['game:join'] = Date.now();
-            socket.emit('game:join', { gameId }); //note emits buffer if socket isn't connected
+            socket.emit('game:join', { gameId });
         };
         socket.on('connect', handleConnect);
         if (socket.connected) {
             handleConnect();
         }
-
 
         // -- clean up -- 
         return () => {
@@ -956,8 +874,7 @@ const GameRoomPage = () => {
             socket.off('game:playerJoined', handlePlayerJoined);
             socket.off('game:playerLeft', handlePlayerLeft);
             socket.off('game:playerDisconnected', handlePlayerDisconnected);
-            socket.off('game:requestSync', handleRequestSync);
-            socket.off('game:stateUpdate', handleStateUpdate);
+            socket.off('game:stateSnapshot', handleStateSnapshot);
             socket.off('game:action', handleGameActionFromSocket);
             socket.off('game:turnChanged', handleTurnChanged);
             socket.off('game:started', handleGameStarted);
@@ -995,33 +912,25 @@ const GameRoomPage = () => {
 
     const handleStartGame = useCallback(() => {
         if (socket && game && game.host._id === user._id) {
-            const startTime = Date.now();
-            socket.emit('game:startGame', {
-                gameId: game._id
-            });
-            roundTripTimers.current['game:startGame'] = startTime;
+            socket.emit('game:startGame', { gameId: game._id });
+            roundTripTimers.current['game:startGame'] = Date.now();
             resetActivityTimer();
         }
     }, [socket, game, user._id, resetActivityTimer]);
 
     const handleEndTurn = useCallback(() => {
         if (socket && game) {
-            const startTime = Date.now();
-            socket.emit('game:endTurn', {
-                gameId: game._id
-            });
-            roundTripTimers.current['game:endTurn'] = startTime;
+            socket.emit('game:endTurn', { gameId: game._id });
+            roundTripTimers.current['game:endTurn'] = Date.now();
             resetActivityTimer();
         }
     }, [socket, game, resetActivityTimer]);
 
     const handleGameAction = useCallback((actionData) => {
         if (!socket || !gameId) return;
-        console.log('handlegameaction:', actionData);
+        console.log('handleGameAction:', actionData);
 
         resetActivityTimer();
-
-        const actionStart = Date.now();
 
         const actionPayload = {
             username: user.username,
@@ -1031,8 +940,10 @@ const GameRoomPage = () => {
             timestamp: Date.now()
         };
 
+        // 1. Apply optimistically to local state immediately (no flicker for the acting player)
         handleLocalAction(actionPayload);
 
+        // 2. Compute chat extra data against pre-action state
         const myState = playerStates[user._id];
         let extra = null;
         if (actionData.action === 'tapCard') {
@@ -1064,34 +975,31 @@ const GameRoomPage = () => {
             timestamp: Date.now()
         }]);
 
+        // 3. Tell other clients about the action (for their optimistic update)
         socket.emit('game:action', {
             gameId: game._id,
             action: actionData.action,
             data: actionData.data || actionData
         });
-        // FIX: Read state synchronously right after handleLocalAction updates it.
-        // handleLocalAction calls setPlayerStates which schedules an update —
-        // we can't read the post-action state synchronously here.
-        // Instead, defer the save one tick so React has flushed the state update.
+
+        // 4. Persist to DB — the server will broadcast game:stateSnapshot to the
+        //    whole room after the write succeeds, reconciling everyone's state.
         setTimeout(() => {
             setPlayerStates(current => {
                 const myState = current[user._id];
-                if (!myState) return current;
-
-                if (!isJoinedRef.current) return current;
+                if (!myState || !isJoinedRef.current) return current;
                 
                 const stripped = stripPlayerStateForStorage(myState);
                 const saveTimestamp = Date.now();
                 
                 roundTripTimers.current['game:saveState'] = saveTimestamp;
-                console.log('[SAVE STATE EMIT] isJoinedRef:', isJoinedRef.current, 'myState exists:', !!myState);
                 socket.emit('game:saveState', {
                     gameId,
                     playerId: user._id,
                     playerState: stripped,
                     clientTimestamp: saveTimestamp
                 });
-                return current; // no mutation, just reading
+                return current;
             });
         }, 0);
 
@@ -1124,7 +1032,6 @@ const GameRoomPage = () => {
     }, [socket, gameId, game, user.username, resetActivityTimer]);
 
     const handleUntapAll = useCallback(() => {
-        const untapStart = Date.now();
         setPlayerStates(prev => {
             const updated = { ...prev };
             if (updated[user._id]) {
@@ -1138,20 +1045,10 @@ const GameRoomPage = () => {
             }
             return updated;
         });
-        const untapDuration = Date.now() - untapStart;
-        console.log(`[CLIENT PERF] untapAll processing: ${untapDuration}ms`);
         resetActivityTimer();
     }, [user._id, resetActivityTimer]);
 
     const leaveGame = useCallback(() => {
-        if (socket && gameId && playerStates[user._id]) {
-            const strippedStates = {};
-            Object.keys(playerStates).forEach(playerId => {
-                strippedStates[playerId] = stripPlayerStateForStorage(playerStates[playerId]);
-            });
-            
-        }
-        //clear this user's player state, that way if he joins again, he'll tell other players that he has an empty player state (he's new)
         setPlayerStates(prev => {
             const updated = { ...prev };
             delete updated[user._id];
@@ -1159,7 +1056,7 @@ const GameRoomPage = () => {
         });
         socket.emit('game:leave', { gameId });
         navigate(`/home`);
-    }, [socket, gameId, playerStates, user._id, navigate, stripPlayerStateForStorage]);
+    }, [socket, gameId, user._id, navigate]);
 
     // ── Loading state ──
     if (!game) {
@@ -1173,14 +1070,12 @@ const GameRoomPage = () => {
 
     return (
         <>
-            {/* Shared font import */}
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
             `}</style>
 
             <div className="game-room-page">
 
-                {/* ── Inactivity Warning ── */}
                 {showInactivityWarning && (
                     <div className="inactivity-warning-banner">
                         <div className="inactivity-warning-content">
@@ -1192,7 +1087,6 @@ const GameRoomPage = () => {
                     </div>
                 )}
 
-                {/* ── Content ── */}
                 <div className="game-room-content">
                     <CardActionsProvider onGameAction={handleGameAction} playerStates={playerStates} userId={user._id}>
                         <div className="game-area-wrapper">
@@ -1253,13 +1147,6 @@ export default GameRoomPage;
 
 
 
-
-
-// System architecture
-// The app is a client-authoritative real-time MTG simulator. Each client maintains its own playerStates map and broadcasts actions over WebSocket. There is no server-side rules enforcement — the server is a relay and state persistence layer.
-//Client-authoritative model: The acting client applies the state change immediately (step 3) before the server even receives it. This is the same model used by Cockatrice and Untap.in — players are trusted like in a paper game. The tradeoff is that state can silently diverge between clients if an action is processed differently on each side.
-
-
 // Todo:
 // - I want to be able to see tokens from scryfall search result.
 // - Should be able to drag cards from hand to battlefield.
@@ -1267,6 +1154,9 @@ export default GameRoomPage;
 // - Click and hold to highlight cards on battlefield. (Select Many)
 //submenus disappear too quick (then so do their parent menus), stay until player clicks off
 //inserted cards (outside deck) disappear from game if you disconnect because not added to players deck and not loaded on re-enter
+//
+
+
 
 //todo: state drift concern, handle with sequence numbers and checksums 
 //idea is to move from client authoritative to server authoritative, but with sequence numbers for actions too

@@ -151,6 +151,31 @@ module.exports = (io) => {
         return data;
     }
 
+    /**
+     * Hydrates all player states in a savedState map and broadcasts them to the
+     * game room as a game:stateSnapshot event. This is the single authoritative
+     * state push — replaces all peer-to-peer game:syncState / game:stateUpdate flow.
+     */
+    async function broadcastStateSnapshot(gameId, savedState) {
+        if (!savedState || Object.keys(savedState).length === 0) return;
+
+        const t = Date.now();
+        const hydratedState = {};
+        for (const [playerId, playerState] of Object.entries(savedState)) {
+            if (playerId === '_chatLog') {
+                hydratedState[playerId] = playerState;
+                continue;
+            }
+            hydratedState[playerId] = await hydratePlayerState(playerState);
+        }
+        console.log(`[PERF] broadcastStateSnapshot hydration: ${Date.now() - t}ms`);
+
+        io.to(`game:${gameId}`).emit('game:stateSnapshot', {
+            savedState: hydratedState,
+            timestamp: Date.now()
+        });
+    }
+
     // ─── Inactivity timers ───────────────────────────────────────────────────────
 
     // BUG FIX #7: Use a mutable ref object stored once in the map so that
@@ -244,7 +269,7 @@ module.exports = (io) => {
         // BUG FIX #4: socket.io clears socket.rooms before the 'disconnect' event
         // fires, so [...socket.rooms].filter(...) always yields []. Track the rooms
         // this socket has joined in a local Set so disconnect cleanup is reliable.
-        const joinedGameRooms = new Set();
+        const joinedGameRooms = new Set(); //joined games for this client
 
         // ── game:create ──────────────────────────────────────────────────────────
 
@@ -287,7 +312,7 @@ module.exports = (io) => {
         }));
 
         // ── game:join ────────────────────────────────────────────────────────────
-//todo understand how game join works (it emits after join from game list)
+
         socket.on('game:join', authenticated(socket, async ({ gameId }) => {
             const totalStart = Date.now();
             try {
@@ -314,12 +339,7 @@ module.exports = (io) => {
                 });
 
                 t = Date.now();
-                // Re-fetch after the atomic update — populate only, no extra save()
                 const freshGame = await populateGame(Game.findById(gameId));
-                // await freshGame.populate('players', 'username');
-                // await freshGame.populate('host', 'username');
-                // await freshGame.populate('connectedPlayers', 'username');
-                // await freshGame.populate('currentTurn', 'username');
                 console.log(`[PERF] game:join populate: ${Date.now() - t}ms`);
 
                 socket.join(`game:${gameId}`);
@@ -336,15 +356,6 @@ module.exports = (io) => {
                 console.log('[SERVER JOIN] savedState keys:', gameObject.savedState ? Object.keys(gameObject.savedState) : []);
                 console.log('[SERVER JOIN] joining userId:', socket.userId);
                 console.log('[SERVER JOIN] their entry:', gameObject.savedState?.[socket.userId] ? 'EXISTS' : 'MISSING');
-                if (gameObject.savedState?.[socket.userId]) {
-                    const s = gameObject.savedState[socket.userId];
-                    console.log('[SERVER JOIN] their state zones:', {
-                        library: s.library?.length,
-                        hand: s.hand?.length,
-                        battlefield: s.battlefield?.length,
-                        lastUpdated: s.lastUpdated
-                    });
-                }
 
                 if (gameObject.savedState) {
                     t = Date.now();
@@ -355,30 +366,19 @@ module.exports = (io) => {
                     gameObject.savedState = hydratedSavedState;
                     console.log(`[PERF] game:join hydration: ${Date.now() - t}ms`);
                 }
-                
-                console.log('[SERVER JOIN] emitting savedState snapshot:', 
-                    gameObject.savedState 
-                        ? Object.fromEntries(Object.entries(gameObject.savedState).map(([id, s]) => [
-                            id, { 
-                                library: s.library?.length, 
-                                hand: s.hand?.length, 
-                                battlefield: s.battlefield?.length,
-                                firstCard: s.hand?.[0]?.scryfallId ? 'hydrated' : s.hand?.[0] ? 'stripped' : 'empty'
-                            }
-                        ]))
-                        : 'null'
-                );
-                socket.emit('game:joined', gameObject);
 
+                socket.emit('game:joined', gameObject); // give this client his info 
+                if (game.savedState && Object.keys(game.savedState).length > 0) { // give other clients his info
+                    await broadcastStateSnapshot(gameId, game.savedState);
+                }
+
+                // No longer emit game:requestSync — the joining player's state comes
+                // from the DB snapshot already included in game:joined above. Other
+                // players in the room will receive a game:stateSnapshot whenever the
+                // rejoining player next saves their state via game:saveState.
                 if (!isAlreadyPlayer) {
                     socket.to(`game:${gameId}`).emit('game:playerJoined', gameObject);
                 }
-
-                socket.to(`game:${gameId}`).emit('game:requestSync', {
-                    reason: isAlreadyPlayer ? 'player_reconnected' : 'player_joined',
-                    playerId: socket.userId,
-                    username: socket.username
-                });
 
                 console.log(`[PERF] game:join TOTAL: ${Date.now() - totalStart}ms`);
             } catch (err) {
@@ -423,6 +423,9 @@ module.exports = (io) => {
                         timestamp: Date.now()
                     });
                 } else {
+                    // Broadcast the action event so other clients can apply it
+                    // optimistically to their local state while the DB write
+                    // (triggered by the acting client's game:saveState) is in flight.
                     socket.to(`game:${gameId}`).emit('game:action', {
                         username: socket.username,
                         playerId: socket.userId,
@@ -591,20 +594,12 @@ module.exports = (io) => {
         }));
 
         // ── game:syncState ───────────────────────────────────────────────────────
-
-        socket.on('game:syncState', async ({ gameId, gameState }) => {
-            try {
-                if (!socket.userId) return;
-                await findGameForPlayer(gameId, socket.userId);
-                socket.to(`game:${gameId}`).emit('game:stateUpdate', {
-                    gameState,
-                    senderId: socket.userId,
-                    senderUsername: socket.username,
-                    timestamp: Date.now()
-                });
-            } catch (err) {
-                console.error('Sync state error:', err);
-            }
+        // REMOVED: Peer-to-peer state sync is replaced by DB-authoritative
+        // game:stateSnapshot broadcasts triggered by game:saveState writes.
+        // This handler is kept as a no-op stub so old clients don't hard-error,
+        // but it does nothing. Remove entirely once all clients are updated.
+        socket.on('game:syncState', () => {
+            // intentionally empty — DB is now the source of truth
         });
 
         // ── game:requestGameData ─────────────────────────────────────────────────
@@ -631,22 +626,13 @@ module.exports = (io) => {
         // ── game:saveState ───────────────────────────────────────────────────────
 
         socket.on('game:saveState', async ({ gameId, playerId, playerState, gameState, clientTimestamp }, ack) => {
-            console.log('[SAVE STATE ENTRY] handler reached, userId:', socket.userId, 'gameId:', gameId);  // ← add this
+            console.log('[SAVE STATE ENTRY] handler reached, userId:', socket.userId, 'gameId:', gameId);
             const totalStart = Date.now();
             try {
                 if (!socket.userId) return;
                 console.log('[SAVE STATE] received from:', socket.userId);
                 console.log('[SAVE STATE] has gameState?', !!gameState, 'has playerState?', !!playerState);
                 console.log('[SAVE STATE] clientTimestamp:', clientTimestamp);
-                if (gameState) {
-                    Object.entries(gameState).forEach(([pId, state]) => {
-                        console.log(`[SAVE STATE] gameState entry ${pId}:`, {
-                            library: state.library?.length,
-                            hand: state.hand?.length,
-                            battlefield: state.battlefield?.length
-                        });
-                    });
-                }
 
                 // BUG FIX #2: Reject saves with no timestamp rather than silently
                 // falling back to Date.now(). The fallback meant any save with a
@@ -664,60 +650,42 @@ module.exports = (io) => {
 
                 let t = Date.now();
                 const game = await findGameForPlayer(gameId, socket.userId);
-                console.log('[SAVE STATE] existing savedState keys:', Object.keys(game.savedState || {}));
-                console.log('[SAVE STATE] existing entry for sender:', {
-                    playerId: socket.userId,
-                    lastUpdated: game.savedState[socket.userId]?.lastUpdated,
-                    asMs: game.savedState[socket.userId]?.lastUpdated 
-                        ? new Date(game.savedState[socket.userId].lastUpdated).getTime() 
-                        : null
-                });
-                console.log('[SAVE STATE] clientTimestamp:', timestamp);
                 const dbDuration = Date.now() - t;
 
                 if (!game.savedState) game.savedState = {};
 
-                const isNewer = (existingState) =>
-                    !existingState?.lastUpdated ||
-                    timestamp > new Date(existingState.lastUpdated).getTime();
-
                 t = Date.now();
                 if (gameState) {
-                for (const [pId, state] of Object.entries(gameState)) {
-                    const existing = game.savedState[pId];
+                    for (const [pId, state] of Object.entries(gameState)) {
+                        const existing = game.savedState[pId];
+                        const existingTs = existing?.lastUpdated 
+                            ? new Date(existing.lastUpdated).getTime() 
+                            : 0;
+
+                        if (timestamp >= existingTs) {
+                            game.savedState[pId] = {
+                                ...stripPlayerStateForStorage(state),
+                                lastUpdated: new Date(timestamp)
+                            };
+                        }
+                    }
+                } else if (playerId && playerState) {
+                    if (playerId !== socket.userId) {
+                        return socket.emit('game:stateSaved', { success: false, error: 'Can only save your own state' });
+                    }
+                    
+                    const existing = game.savedState[playerId];
                     const existingTs = existing?.lastUpdated 
                         ? new Date(existing.lastUpdated).getTime() 
                         : 0;
                     
-                    console.log(`[SAVE STATE] ${pId}: incoming=${timestamp}, existing=${existingTs}, willSave=${timestamp >= existingTs}`);
-                    
-                    // Use >= not > so equal timestamps still save (handles same-ms edge case)
                     if (timestamp >= existingTs) {
-                        game.savedState[pId] = {
-                            ...stripPlayerStateForStorage(state),
+                        game.savedState[playerId] = {
+                            ...stripPlayerStateForStorage(playerState),
                             lastUpdated: new Date(timestamp)
                         };
                     }
                 }
-            } else if (playerId && playerState) {
-                if (playerId !== socket.userId) {
-                    return socket.emit('game:stateSaved', { success: false, error: 'Can only save your own state' });
-                }
-                
-                const existing = game.savedState[playerId];
-                const existingTs = existing?.lastUpdated 
-                    ? new Date(existing.lastUpdated).getTime() 
-                    : 0;
-                
-                console.log(`[SAVE STATE] ${playerId}: incoming=${timestamp}, existing=${existingTs}, willSave=${timestamp >= existingTs}`);
-                
-                if (timestamp >= existingTs) {
-                    game.savedState[playerId] = {
-                        ...stripPlayerStateForStorage(playerState),
-                        lastUpdated: new Date(timestamp)
-                    };
-                }
-            }
                 const stripDuration = Date.now() - t;
 
                 game.markModified('savedState');
@@ -727,6 +695,13 @@ module.exports = (io) => {
 
                 if (typeof ack === 'function') ack();
                 socket.emit('game:stateSaved', { success: true, timestamp: new Date(timestamp) });
+
+                // ── Broadcast DB state to all players in the room ──────────────
+                // This is the key change: after every successful save, push the
+                // now-authoritative DB state to everyone so no client is ever
+                // operating on stale peer data.
+                await broadcastStateSnapshot(gameId, game.savedState);
+
                 console.log(`[PERF] game:saveState: DB=${dbDuration}ms, Strip=${stripDuration}ms, Save=${saveDuration}ms, TOTAL=${Date.now() - totalStart}ms`);
             } catch (err) {
                 console.error('[SAVE STATE ERROR]', { gameId, userId: socket.userId, message: err.message, stack: err.stack });
@@ -747,6 +722,8 @@ module.exports = (io) => {
                 game.markModified('savedState');
                 await game.save();
                 socket.emit('game:chatLogSaved', { success: true });
+                // No state snapshot needed for chat-only saves — chat is not
+                // part of the player state broadcasted to opponents.
             } catch (err) {
                 console.error('Save chat log error:', err);
             }
@@ -837,6 +814,3 @@ module.exports = (io) => {
         };
     }
 };
-
-// BUG: reloading didn't populate player states
-// FIXED: registering events before getting games means listeners weren't setup for when client sent out an event, so request dropped
