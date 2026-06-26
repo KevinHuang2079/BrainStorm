@@ -720,23 +720,40 @@ const GameRoomPage = () => {
         // peer-to-peer flow. We apply every player's state except our own — our
         // local optimistic update is always fresher than the round-tripped DB value.
         const handleStateSnapshot = ({ savedState }) => {
-            if (!savedState) return;
+        if (!savedState) return;
 
-            setPlayerStates(prev => {
-                const updated = { ...prev };
-                for (const [playerId, state] of Object.entries(savedState)) {
-                    if (playerId === '_chatLog') continue; // chat handled separately
-                    if (playerId === user._id) continue;  // never overwrite our own optimistic state
-                    if (!state) continue;
+        setPlayerStates(prev => {
+            const updated = { ...prev };
+            for (const [playerId, state] of Object.entries(savedState)) {
+                if (playerId === '_chatLog') continue;
+                if (playerId === user._id) continue;
+                if (!state) continue;
+
+                // Only update if incoming cards appear hydrated (have a name field)
+                // to avoid overwriting good state with cache-miss stripped cards
+                const battlefield = state.battlefield ?? [];
+                const isHydrated = battlefield.length === 0 || battlefield[0]?.name;
+                
+                if (!isHydrated && updated[playerId]?.battlefield?.length > 0) {
+                    // Keep existing hydrated state, only update non-zone scalars
+                    updated[playerId] = {
+                        ...updated[playerId],
+                        lifeTotal: state.lifeTotal ?? updated[playerId].lifeTotal,
+                        customCounters: state.customCounters ?? updated[playerId].customCounters,
+                        poisonCounters: state.poisonCounters ?? updated[playerId].poisonCounters,
+                        commanderDamage: state.commanderDamage ?? updated[playerId].commanderDamage,
+                    };
+                } else {
                     updated[playerId] = {
                         ...state,
                         _id: state._id ?? playerId,
                         username: updated[playerId]?.username ?? state.username,
                     };
                 }
-                return updated;
-            });
-        };
+            }
+            return updated;
+        });
+    };
 
         const handleGameActionFromSocket = (payload) => {
             const processStart = Date.now();
