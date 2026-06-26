@@ -726,7 +726,7 @@ const GameRoomPage = () => {
             const updated = { ...prev };
             for (const [playerId, state] of Object.entries(savedState)) {
                 if (playerId === '_chatLog') continue;
-                if (playerId === user._id) continue;
+                if (playerId.toString() === user._id.toString()) continue; 
                 if (!state) continue;
 
                 // Only update if incoming cards appear hydrated (have a name field)
