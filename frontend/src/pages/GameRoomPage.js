@@ -720,46 +720,40 @@ const GameRoomPage = () => {
         // peer-to-peer flow. We apply every player's state except our own — our
         // local optimistic update is always fresher than the round-tripped DB value.
         const handleStateSnapshot = ({ savedState }) => {
-            if (!savedState) return;
+        if (!savedState) return;
 
-            setPlayerStates(prev => {
-                const updated = { ...prev };
-                for (const [playerId, state] of Object.entries(savedState)) {
-                    if (playerId === '_chatLog') continue;
-                    if (!state) continue;
+        setPlayerStates(prev => {
+            const updated = { ...prev };
+            for (const [playerId, state] of Object.entries(savedState)) {
+                if (playerId === '_chatLog') continue;
+                if (playerId.toString() === user._id.toString()) continue; 
+                if (!state) continue;
 
-                    const isOwnState = playerId.toString() === user._id.toString();
-
-                    // Check hydration: any non-empty zone must have card names
-                    const zones = ['battlefield', 'hand', 'library', 'graveyard', 'exile'];
-                    const firstPopulatedZone = zones.map(z => state[z]).find(z => z?.length > 0);
-                    const isHydrated = !firstPopulatedZone || firstPopulatedZone[0]?.name;
-
-                    if (!isHydrated) {
-                        // Server hydration failed or is lagging — only apply scalars
-                        if (updated[playerId]) {
-                            updated[playerId] = {
-                                ...updated[playerId],
-                                lifeTotal: state.lifeTotal ?? updated[playerId].lifeTotal,
-                                customCounters: state.customCounters ?? updated[playerId].customCounters,
-                                poisonCounters: state.poisonCounters ?? updated[playerId].poisonCounters,
-                                commanderDamage: state.commanderDamage ?? updated[playerId].commanderDamage,
-                            };
-                        }
-                        continue;
-                    }
-
-                    if (isOwnState) continue; // our optimistic state is always fresher
-
+                // Only update if incoming cards appear hydrated (have a name field)
+                // to avoid overwriting good state with cache-miss stripped cards
+                const battlefield = state.battlefield ?? [];
+                const isHydrated = battlefield.length === 0 || battlefield[0]?.name;
+                
+                if (!isHydrated && updated[playerId]?.battlefield?.length > 0) {
+                    // Keep existing hydrated state, only update non-zone scalars
+                    updated[playerId] = {
+                        ...updated[playerId],
+                        lifeTotal: state.lifeTotal ?? updated[playerId].lifeTotal,
+                        customCounters: state.customCounters ?? updated[playerId].customCounters,
+                        poisonCounters: state.poisonCounters ?? updated[playerId].poisonCounters,
+                        commanderDamage: state.commanderDamage ?? updated[playerId].commanderDamage,
+                    };
+                } else {
                     updated[playerId] = {
                         ...state,
                         _id: state._id ?? playerId,
                         username: updated[playerId]?.username ?? state.username,
                     };
                 }
-                return updated;
-            });
-        };
+            }
+            return updated;
+        });
+    };
 
         const handleGameActionFromSocket = (payload) => {
             const processStart = Date.now();
@@ -881,8 +875,8 @@ const GameRoomPage = () => {
 
         let hasJoined = false;
         const handleConnect = () => {
-            // if (hasJoined) return;
-            // hasJoined = true;
+            if (hasJoined) return;
+            hasJoined = true;
             roundTripTimers.current['game:join'] = Date.now();
             socket.emit('game:join', { gameId });
         };
