@@ -3,7 +3,6 @@
 const scryfallService = require('../services/scryfallService');
 const { fetchCardFromR2, batchFetchCardsFromR2, uploadCardToR2 } = require('./r2client');
 
-// Retry a fn up to maxAttempts with exponential backoff on 503
 async function withRetry(fn, maxAttempts = 3, baseDelayMs = 500) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
@@ -39,33 +38,41 @@ class CardCache {
         this.cache.set(scryfallId, { data: cardData, timestamp: Date.now() });
     }
 
-    // Single card: R2 → Scryfall fallback → upload to R2
     async fetch(scryfallId) {
         const cached = this.get(scryfallId);
         if (cached) {
+            console.log(`[CACHE] in-memory hit: ${scryfallId} (${cached.name ?? 'unnamed'})`);
             if (!cached.artCropUrl) this._backfillCropUrl(scryfallId, cached);
             return cached;
         }
 
-        const r2Card = await fetchCardFromR2(scryfallId).catch(() => null);
+        console.log(`[CACHE] in-memory miss: ${scryfallId} — checking R2...`);
+        const r2Card = await fetchCardFromR2(scryfallId).catch((err) => {
+            console.warn(`[R2] fetch error for ${scryfallId}:`, err.message);
+            return null;
+        });
+
         if (r2Card) {
+            console.log(`[R2] hit: ${scryfallId} (${r2Card.name ?? 'unnamed'})`);
             if (!r2Card.artCropUrl) this._backfillCropUrl(scryfallId, r2Card);
             this.set(scryfallId, r2Card);
             return r2Card;
         }
 
-        // R2 miss — fetch from Scryfall by scryfallId
+        console.warn(`[R2] miss: ${scryfallId} — falling back to Scryfall...`);
         try {
             const scryfallCard = await withRetry(() =>
                 scryfallService.getCardByScryfallId(scryfallId)
             );
             if (scryfallCard) {
+                console.log(`[SCRYFALL] fetched: ${scryfallId} (${scryfallCard.name ?? 'unnamed'})`);
                 this.set(scryfallId, scryfallCard);
-                // Upload to R2 in background so future fetches are fast
                 uploadCardToR2(scryfallId, scryfallCard).catch(err =>
                     console.error(`[R2 UPLOAD] failed for ${scryfallId}:`, err.message)
                 );
                 return scryfallCard;
+            } else {
+                console.error(`[SCRYFALL] returned null for ${scryfallId} — card will be unhydrated`);
             }
         } catch (err) {
             console.error(`[SCRYFALL FALLBACK] failed for ${scryfallId}:`, err.message);
@@ -74,7 +81,6 @@ class CardCache {
         return null;
     }
 
-    // Batch: R2 → Scryfall batch fallback → upload misses to R2
     async batchFetch(scryfallIds) {
         const uniqueIds = [...new Set(scryfallIds)];
         const result = {};
@@ -82,46 +88,74 @@ class CardCache {
 
         for (const id of uniqueIds) {
             const cached = this.get(id);
-            if (cached) result[id] = cached;
-            else uncachedIds.push(id);
+            if (cached) {
+                result[id] = cached;
+            } else {
+                uncachedIds.push(id);
+            }
+        }
+
+        console.log(
+            `[CACHE] batchFetch: ${uniqueIds.length} unique ids — ` +
+            `${uniqueIds.length - uncachedIds.length} in-memory hits, ` +
+            `${uncachedIds.length} misses`
+        );
+        if (uncachedIds.length > 0) {
+            console.log(`[CACHE] in-memory misses:`, uncachedIds);
         }
 
         if (uncachedIds.length === 0) return result;
 
-        // Try R2 first
-        const r2Map = await batchFetchCardsFromR2(uncachedIds).catch(() => ({}));
-        const stillMissing = [];
+        const r2Map = await batchFetchCardsFromR2(uncachedIds).catch((err) => {
+            console.error(`[R2] batchFetch error:`, err.message);
+            return {};
+        });
 
+        const stillMissing = [];
         for (const id of uncachedIds) {
             if (r2Map[id]) {
                 const card = r2Map[id];
+                console.log(`[R2] batch hit: ${id} (${card.name ?? 'unnamed'})`);
                 this.set(id, card);
                 result[id] = card;
                 if (!card.artCropUrl) this._backfillCropUrl(id, card);
             } else {
+                console.warn(`[R2] batch miss: ${id}`);
                 stillMissing.push(id);
             }
         }
 
-        // Scryfall fallback for anything not in R2
         if (stillMissing.length > 0) {
-            console.log(`[CACHE MISS] ${stillMissing.length} cards not in R2, fetching from Scryfall`);
+            console.warn(
+                `[CACHE MISS] ${stillMissing.length} cards not in R2 or memory, ` +
+                `fetching from Scryfall:`, stillMissing
+            );
             try {
-                // getCardsBatch accepts scryfallIds 
                 const { found } = await withRetry(() =>
                     scryfallService.getCardsBatchByScryfallIds(stillMissing)
                 );
 
+                const foundIds = new Set(found.map(c => c.scryfallId));
+                const notFound = stillMissing.filter(id => !foundIds.has(id));
+                if (notFound.length > 0) {
+                    console.error(
+                        `[SCRYFALL BATCH] ${notFound.length} ids returned nothing — ` +
+                        `these cards will be unhydrated:`, notFound
+                    );
+                }
+
                 const toUpload = [];
                 for (const card of found) {
                     if (card.scryfallId) {
+                        console.log(`[SCRYFALL] batch fetched: ${card.scryfallId} (${card.name ?? 'unnamed'})`);
                         this.set(card.scryfallId, card);
                         result[card.scryfallId] = card;
                         toUpload.push(card);
+                    } else {
+                        console.warn(`[SCRYFALL] card returned without scryfallId:`, card);
                     }
                 }
 
-                // Upload new cards to R2 in background
                 Promise.all(
                     toUpload.map(card =>
                         uploadCardToR2(card.scryfallId, card).catch(err =>
@@ -131,8 +165,16 @@ class CardCache {
                 );
             } catch (err) {
                 console.error('[SCRYFALL BATCH FALLBACK] failed:', err.message);
+                console.error('[SCRYFALL BATCH FALLBACK] these ids will be unhydrated:', stillMissing);
             }
         }
+
+        const hydratedCount = Object.keys(result).length;
+        const missCount = uniqueIds.length - hydratedCount;
+        console.log(
+            `[CACHE] batchFetch complete: ${hydratedCount}/${uniqueIds.length} hydrated` +
+            (missCount > 0 ? `, ${missCount} still unhydrated` : '')
+        );
 
         return result;
     }
