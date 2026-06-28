@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useCardActions } from '../../contexts/cardActions';
 import ViewCardItem from '../ViewCardItem';
 import CardActionsMenu from './CardActionsMenu';
@@ -23,14 +23,14 @@ const HandComponent = ({ hand }) => {
         return () => window.removeEventListener('resize', updateWidth);
     }, []);
 
-    const handleCardClick = (card, position) => {
+    const handleCardClick = useCallback((card, position) => {
         const adjustedPosition = {
             x: position.x + 10,
             y: position.y - 160
         };
         setSelectedCard(card);
         setMenuPosition(adjustedPosition);
-    };
+    }, []);
 
     const handlePlayCard = (card) => {
         playCard(card, 'hand');

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useContext, useRef } from 'react';
 import { AuthContext } from '../../contexts/auth';
 import { deckAPI } from '../../services/api';
@@ -12,13 +13,13 @@ import '../../styles/PlayerArea.css';
 // Just a hover menu that opens on when you click on life total section. 
 // the counters are only visible on the menu (when opened)
 
-const PlayerArea = ({ game, playerStates, onGameAction }) => {
+const PlayerArea = React.memo(({ game, myPlayerState, onGameAction }) => {
     const { user } = useContext(AuthContext);
     const { drawCard, shuffleLibrary, loadDeck, scoopDeck, mulligan } = useCardActions();
     const [viewingZone, setViewingZone] = useState(null);
     const [lifeTotalMenuOpen, setLifeTotalMenuOpen] = useState(false);
 
-    const myPlayer = playerStates[user._id] || {
+    const myPlayer = myPlayerState || {
         hand: [],
         library: [],
         exile: [],
@@ -527,8 +528,7 @@ const PlayerArea = ({ game, playerStates, onGameAction }) => {
                 <ZoneViewingModal 
                     zoneName={viewingZone}
                     onClose={() => setViewingZone(null)}
-                    playerStates={playerStates}
-                    userId={user._id}
+                    playerState={myPlayer}
                 />
             )}
             <HandComponent hand={hand} />
@@ -541,6 +541,11 @@ const PlayerArea = ({ game, playerStates, onGameAction }) => {
             </div>
         </div>
     );
-};
+}, (prev, next) => {
+    return prev.myPlayerState === next.myPlayerState &&
+           prev.onGameAction === next.onGameAction &&
+           prev.game?.currentTurn === next.game?.currentTurn &&
+           prev.game?.status === next.game?.status;
+});
 
 export default PlayerArea;

@@ -1,4 +1,5 @@
-import { useContext, useState, useEffect, useRef, useMemo } from 'react';
+import React from 'react'
+import { useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AuthContext } from '../../contexts/auth';
 import { useCardActions } from '../../contexts/cardActions';
 import ViewCardItem from '../ViewCardItem';
@@ -99,8 +100,7 @@ const CardCounterOverlay = ({ card }) => {
     );
 };
 
-const DraggableCard = ({ card, position, onCardClick, containerDimensions, cardScale, zIndex, deckBackImage }) => {
-    const { incrementCounter, removeCounter } = useCardActions();
+const DraggableCard = React.memo(({ card, position, onCardClick, containerDimensions, cardScale, zIndex, deckBackImage }) => {
     const {
         attributes,
         listeners,
@@ -224,7 +224,11 @@ const DraggableCard = ({ card, position, onCardClick, containerDimensions, cardS
             </ViewCardItem>
         </div>
     );
-};
+}, (prev, next) => {
+    return prev.card === next.card &&
+           prev.position === next.position &&
+           prev.zIndex === next.zIndex;
+});
 
 const StaticCard = ({ card, position, containerDimensions, cardScale, zIndex, deckBackImage, onCardClick }) => {
 
@@ -348,7 +352,6 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
     const [opponentMenuPosition, setOpponentMenuPosition] = useState({ x: 0, y: 0 });
     const [selectedOpponentPlayerId, setSelectedOpponentPlayerId] = useState(null);
 
-
     const currentUserId = user._id;
     const myBattlefield = useMemo(
         () => playerStates[user._id]?.battlefield || [],
@@ -364,6 +367,8 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
     const [opponentDimensions, setOpponentDimensions] = useState({});
     const [quadrantDimensions, setQuadrantDimensions] = useState({});
     
+    const handleClose = useCallback(() => setSelectedCard(null), []);
+
     const [cardScale] = useState({
         widthPercent: 0.08,
         heightPercent: 0.25
@@ -525,11 +530,10 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
         if (opponents.length === 2) return 'three-player-layout';
         return 'four-player-layout';
     };
-
-    const handleCardClick = (card, position) => {
+    const handleCardClick = useCallback((card, position) => {
         setSelectedCard(card);
         setMenuPosition(position);
-    };
+    }, []);
 
     const handleMoveToZone = (card, targetZone) => {
         moveCard(card, 'battlefield', targetZone);
@@ -726,7 +730,7 @@ const BattleField = ({ game, playerStates, onRepositionCard, onEndTurn, onStartG
                 card={selectedCard}
                 isOpen={!!selectedCard}
                 position={menuPosition}
-                onClose={() => setSelectedCard(null)}
+                onClose={() => handleClose ()}
                 onMoveToZone={handleMoveToZone}
                 currentZone='battlefield'
             />

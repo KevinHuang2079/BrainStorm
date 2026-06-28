@@ -24,7 +24,7 @@ const GameRoomPage = () => {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    const [game, setGame] = useState(null);
+    const [game, setGame] = useState(null); 
     const messagesEndRef = useRef(null);
 
     const [playerStates, setPlayerStates] = useState({});
@@ -45,6 +45,18 @@ const GameRoomPage = () => {
     const [railOpen, setRailOpen] = useState(true);
     const isJoinedRef = useRef(false);
     const joinCountRef = useRef(0);
+
+    const playerStatesRef = useRef({});
+
+    const gameRef = useRef(game);
+    useEffect(() => { gameRef.current = game; }, [game]);
+
+    const userRef = useRef(user);
+    useEffect(() => { userRef.current = user; }, [user]);
+
+    useEffect(() => {
+        playerStatesRef.current = playerStates;
+    }, [playerStates]);
 
     
     const handleActivityReset = () => {
@@ -152,432 +164,320 @@ const GameRoomPage = () => {
         return arr;
     }, []);
 
-    const handleLocalAction = useCallback(({ username, action, data, timestamp, playerId }) => {
-        if (action === 'rollDice') {
-            setDiceResult({ username, result: data.result, sides: data.sides });
-            setTimeout(() => setDiceResult(null), 3000);
-            return;
-        }
+    // Pure function — takes prev state + action payload, returns next state
+    // Move the entire switch block from handleLocalAction here.
+    // No setPlayerStates calls inside — just returns the new state map.
+    const computeNextPlayerStates = (prev, { action, data, playerId }, format, shuffleArray) => {
+        if (!prev) return prev;
 
-        setPlayerStates(prev => {
-            const updated = { ...prev };
-            const playerState = updated[playerId];
-            
-            if (!playerState) {
-                return prev;
+        const updated = { ...prev };
+        const playerState = updated[playerId];
+
+        if (!playerState) return prev;
+
+        switch (action) {
+            case 'changeLifeTotal': {
+                const { amount } = data;
+                const currentLife = playerState.lifeTotal ?? (format === 'commander' ? 40 : 20);
+                updated[playerId] = { ...playerState, lifeTotal: currentLife + amount };
+                break;
             }
 
-            switch (action) {
-                case 'changeLifeTotal': {
-                    const { amount } = data;
-                    const currentLife = playerState.lifeTotal ?? (game?.format === 'commander' ? 40 : 20);
+            case 'changeCounter': {
+                const { counterType, amount } = data;
+                if (counterType.startsWith('custom_new:')) {
+                    const name = counterType.replace('custom_new:', '');
+                    const existing = playerState.customCounters || [];
                     updated[playerId] = {
                         ...playerState,
-                        lifeTotal: currentLife + amount
+                        customCounters: [...existing, { name, value: 0 }]
                     };
-                    break;
+                } else if (counterType.startsWith('custom_')) {
+                    const idx = parseInt(counterType.replace('custom_', ''), 10);
+                    const newCustom = (playerState.customCounters || []).map((c, i) =>
+                        i === idx ? { ...c, value: Math.max(0, c.value + amount) } : c
+                    );
+                    updated[playerId] = { ...playerState, customCounters: newCustom };
+                } else {
+                    updated[playerId] = {
+                        ...playerState,
+                        [counterType]: Math.max(0, (playerState[counterType] ?? 0) + amount)
+                    };
                 }
-                case 'changeCounter': {
-                    const { counterType, amount } = data;
+                break;
+            }
 
-                    if (counterType.startsWith('custom_new:')) {
-                        const name = counterType.replace('custom_new:', '');
-                        const existing = playerState.customCounters || [];
-                        updated[playerId] = {
-                            ...playerState,
-                            customCounters: [...existing, { name, value: 0 }]
-                        };
-                    } else if (counterType.startsWith('custom_')) {
-                        const idx = parseInt(counterType.replace('custom_', ''), 10);
-                        const newCustom = (playerState.customCounters || []).map((c, i) =>
-                            i === idx ? { ...c, value: Math.max(0, c.value + amount) } : c
-                        );
-                        updated[playerId] = { ...playerState, customCounters: newCustom };
-                    } else {
-                        updated[playerId] = {
-                            ...playerState,
-                            [counterType]: Math.max(0, (playerState[counterType] ?? 0) + amount)
-                        };
+            case 'loadDeck':
+                updated[playerId] = {
+                    ...playerState,
+                    library: data.library || [],
+                    hand: [],
+                    battlefield: data.startInPlay || [],
+                    graveyard: [],
+                    exile: [],
+                    facedown: [],
+                    sideboard: data.sideboard || []
+                };
+                break;
+
+            case 'drawCard': {
+                const { cards, zone } = data;
+                const cardsWithPositions = cards.map((card, index) => ({
+                    ...card,
+                    currentFaceIndex: card.currentFaceIndex || 0,
+                    position: card.position || {
+                        x: (playerState[zone]?.length || 0) * 120 + index * 120,
+                        y: 0
                     }
-                    break;
-                }
-                case 'loadDeck':
-                    updated[playerId] = {
-                        ...playerState,
-                        library: data.library || [],
-                        hand: [],
-                        battlefield: data.startInPlay || [],
-                        graveyard: [],
-                        exile: [],
-                        facedown: [],
-                        sideboard: data.sideboard || []
-                    };
-                    break;
+                }));
+                updated[playerId] = {
+                    ...playerState,
+                    library: (playerState.library || []).slice(cards.length),
+                    [zone]: [...(playerState[zone] || []), ...cardsWithPositions]
+                };
+                break;
+            }
 
-                case 'drawCard': {
-                    const { cards, zone } = data;
-                    const cardsWithPositions = cards.map((card, index) => ({
+            case 'mulligan': {
+                const { count } = data;
+                const handCards = playerState.hand || [];
+                const libraryCards = playerState.library || [];
+                const newLibrary = shuffleArray([...libraryCards, ...handCards]);
+                const newHand = newLibrary.slice(0, count).map(card => ({
+                    ...card,
+                    currentFaceIndex: card.currentFaceIndex || 0
+                }));
+                updated[playerId] = {
+                    ...playerState,
+                    hand: newHand,
+                    library: newLibrary.slice(count)
+                };
+                break;
+            }
+
+            case 'play': {
+                const { card, fromZone, toZone } = data;
+                const from = fromZone.toLowerCase();
+                const to = toZone || 'battlefield';
+                const cardWithPosition = to === 'battlefield' && !card.position
+                    ? {
                         ...card,
                         currentFaceIndex: card.currentFaceIndex || 0,
-                        position: card.position || { 
-                            x: (playerState[zone]?.length || 0) * 120 + index * 120, 
-                            y: 0 
-                        }
-                    }));
-                    
-                    updated[playerId] = {
-                        ...playerState,
-                        library: (playerState.library || []).slice(cards.length),
-                        [zone]: [...(playerState[zone] || []), ...cardsWithPositions]
-                    };
-                    break;
-                }
+                        position: { x: (playerState[to]?.length || 0) * 120, y: 0 },
+                        zIndex: (playerState[to]?.length || 0) + 1
+                    }
+                    : { ...card, currentFaceIndex: card.currentFaceIndex || 0 };
+                updated[playerId] = {
+                    ...playerState,
+                    [from]: (playerState[from] || []).filter(c => c._id !== card._id),
+                    [to]: [...(playerState[to] || []), cardWithPosition]
+                };
+                break;
+            }
 
-                case 'mulligan': {
-                    const { count } = data;
-                    const handCards = playerState.hand || [];
-                    const libraryCards = playerState.library || [];
-                    
-                    const newLibrary = [...libraryCards, ...handCards];
-                    const shuffledLibrary = shuffleArray(newLibrary);
-                    
-                    const newHand = shuffledLibrary.slice(0, count).map(card => ({
+            case 'playFaceDown': {
+                const { card, fromZone, toZone } = data;
+                const from = fromZone.toLowerCase();
+                const to = toZone || 'battlefield';
+                const cardWithPosition = to === 'battlefield'
+                    ? {
                         ...card,
-                        currentFaceIndex: card.currentFaceIndex || 0
-                    }));
-                    const remainingLibrary = shuffledLibrary.slice(count);
-                    
+                        currentFaceIndex: card.currentFaceIndex || 0,
+                        isFaceDown: true,
+                        position: card.position || { x: (playerState[to]?.length || 0) * 120, y: 0 },
+                        zIndex: (playerState[to]?.length || 0) + 1
+                    }
+                    : { ...card, currentFaceIndex: card.currentFaceIndex || 0, isFaceDown: true };
+                updated[playerId] = {
+                    ...playerState,
+                    [from]: (playerState[from] || []).filter(c => c._id !== card._id),
+                    [to]: [...(playerState[to] || []), cardWithPosition]
+                };
+                break;
+            }
+
+            case 'move': {
+                const { card, fromZone, toZone } = data;
+                const from = fromZone.toLowerCase();
+                const to = toZone.toLowerCase();
+                if ((card.isClone || card.isToken) && from === 'battlefield') {
                     updated[playerId] = {
                         ...playerState,
-                        hand: newHand,
-                        library: remainingLibrary
+                        [from]: (playerState[from] || []).filter(c => c._id !== card._id)
                     };
-                    break;
-                }
-
-                case 'play': {
-                    const { card, fromZone, toZone } = data;
-                    const from = fromZone.toLowerCase();
-                    const to = toZone || 'battlefield';
-                    
+                } else {
                     const cardWithPosition = to === 'battlefield' && !card.position
-                        ? { 
+                        ? {
                             ...card,
                             currentFaceIndex: card.currentFaceIndex || 0,
-                            position: { 
-                                x: (playerState[to]?.length || 0) * 120, 
-                                y: 0 
-                            },
+                            position: { x: (playerState[to]?.length || 0) * 120, y: 0 },
                             zIndex: (playerState[to]?.length || 0) + 1
                         }
                         : { ...card, currentFaceIndex: card.currentFaceIndex || 0 };
-                    
                     updated[playerId] = {
                         ...playerState,
                         [from]: (playerState[from] || []).filter(c => c._id !== card._id),
                         [to]: [...(playerState[to] || []), cardWithPosition]
                     };
-                    break;
                 }
+                break;
+            }
 
-                case 'playFaceDown': {
-                    const { card, fromZone, toZone } = data;
-                    const from = fromZone.toLowerCase();
-                    const to = toZone || 'battlefield';
-                    
-                    const cardWithPosition = to === 'battlefield'
-                        ? { 
-                            ...card,
-                            currentFaceIndex: card.currentFaceIndex || 0,
-                            isFaceDown: true,
-                            position: card.position || { 
-                                x: (playerState[to]?.length || 0) * 120, 
-                                y: 0 
-                            },
-                            zIndex: (playerState[to]?.length || 0) + 1
-                        }
-                        : { ...card, currentFaceIndex: card.currentFaceIndex || 0, isFaceDown: true };
-                    
+            case 'moveToLibraryTop': {
+                const { card, fromZone } = data;
+                const from = fromZone.toLowerCase();
+                if ((card.isClone || card.isToken) && from === 'battlefield') {
+                    updated[playerId] = {
+                        ...playerState,
+                        [from]: (playerState[from] || []).filter(c => c._id !== card._id)
+                    };
+                } else {
                     updated[playerId] = {
                         ...playerState,
                         [from]: (playerState[from] || []).filter(c => c._id !== card._id),
-                        [to]: [...(playerState[to] || []), cardWithPosition]
+                        library: [{ ...card, currentFaceIndex: card.currentFaceIndex || 0 }, ...(playerState.library || [])]
                     };
-                    break;
                 }
+                break;
+            }
 
-                case 'move': {
-                    const { card, fromZone, toZone } = data;
-                    const from = fromZone.toLowerCase();
-                    const to = toZone.toLowerCase();
-                    
-                    if ((card.isClone || card.isToken) && from === 'battlefield') {
-                        updated[playerId] = {
-                            ...playerState,
-                            [from]: (playerState[from] || []).filter(c => c._id !== card._id)
-                        };
-                    } else {
-                        const cardWithPosition = to === 'battlefield' && !card.position
-                            ? { 
-                                ...card,
-                                currentFaceIndex: card.currentFaceIndex || 0,
-                                position: { 
-                                    x: (playerState[to]?.length || 0) * 120, 
-                                    y: 0 
-                                },
-                                zIndex: (playerState[to]?.length || 0) + 1
-                            }
-                            : { ...card, currentFaceIndex: card.currentFaceIndex || 0 };
-                        
-                        updated[playerId] = {
-                            ...playerState,
-                            [from]: (playerState[from] || []).filter(c => c._id !== card._id),
-                            [to]: [...(playerState[to] || []), cardWithPosition]
-                        };
-                    }
-                    break;
-                }
-
-                case 'moveToLibraryTop': {
-                    const { card, fromZone } = data;
-                    const from = fromZone.toLowerCase();
-                    
-                    if ((card.isClone || card.isToken) && from === 'battlefield') {
-                        updated[playerId] = {
-                            ...playerState,
-                            [from]: (playerState[from] || []).filter(c => c._id !== card._id)
-                        };
-                    } else {
-                        updated[playerId] = {
-                            ...playerState,
-                            [from]: (playerState[from] || []).filter(c => c._id !== card._id),
-                            library: [{ ...card, currentFaceIndex: card.currentFaceIndex || 0 }, ...(playerState.library || [])]
-                        };
-                    }
-                    break;
-                }
-
-                case 'moveToLibraryBottom': {
-                    const { card, fromZone } = data;
-                    const from = fromZone.toLowerCase();
-                    
-                    if ((card.isClone || card.isToken) && from === 'battlefield') {
-                        updated[playerId] = {
-                            ...playerState,
-                            [from]: (playerState[from] || []).filter(c => c._id !== card._id)
-                        };
-                    } else {
-                        updated[playerId] = {
-                            ...playerState,
-                            [from]: (playerState[from] || []).filter(c => c._id !== card._id),
-                            library: [...(playerState.library || []), { ...card, currentFaceIndex: card.currentFaceIndex || 0 }]
-                        };
-                    }
-                    break;
-                }
-
-                case 'repositionCard': {
-                    const { cardId, position, zIndex } = data;
-                    const newBattlefield = playerState.battlefield.map(card =>
-                        card._id === cardId 
-                            ? { ...card, position, zIndex }
-                            : card
-                    );
-
+            case 'moveToLibraryBottom': {
+                const { card, fromZone } = data;
+                const from = fromZone.toLowerCase();
+                if ((card.isClone || card.isToken) && from === 'battlefield') {
                     updated[playerId] = {
                         ...playerState,
-                        battlefield: newBattlefield
+                        [from]: (playerState[from] || []).filter(c => c._id !== card._id)
                     };
-                    break;
-                }
-
-                case 'toggleAltFace': {
-                    const { cardId, zone } = data;
-                    const targetZone = zone.toLowerCase();
-                    const newZone = (playerState[targetZone] || []).map(card => {
-                        if (card._id === cardId) {
-                            const hasAltFace = card.altImageUrl || (card.card_faces && card.card_faces.length > 1);
-                            if (hasAltFace) {
-                                const currentIndex = card.currentFaceIndex ?? 0;
-                                const nextIndex = currentIndex === 0 ? 1 : 0;
-                                return { ...card, currentFaceIndex: nextIndex };
-                            }
-                        }
-                        return card;
-                    });
-
+                } else {
                     updated[playerId] = {
                         ...playerState,
-                        [targetZone]: newZone
+                        [from]: (playerState[from] || []).filter(c => c._id !== card._id),
+                        library: [...(playerState.library || []), { ...card, currentFaceIndex: card.currentFaceIndex || 0 }]
                     };
-                    break;
                 }
+                break;
+            }
 
-                case 'tapCard': {
-                    const { cardId } = data;
-                    const newBattlefield = playerState.battlefield.map(card => {
-                        if (card._id === cardId) {
-                            return { ...card, isTapped: !card.isTapped };
-                        }
-                        return card;
-                    });
+            case 'repositionCard': {
+                const { cardId, position, zIndex } = data;
+                updated[playerId] = {
+                    ...playerState,
+                    battlefield: playerState.battlefield.map(card =>
+                        card._id === cardId ? { ...card, position, zIndex } : card
+                    )
+                };
+                break;
+            }
 
-                    updated[playerId] = {
-                        ...playerState,
-                        battlefield: newBattlefield
-                    };
-                    break;
-                }
+            case 'toggleAltFace': {
+                const { cardId, zone } = data;
+                const targetZone = zone.toLowerCase();
+                updated[playerId] = {
+                    ...playerState,
+                    [targetZone]: (playerState[targetZone] || []).map(card => {
+                        if (card._id !== cardId) return card;
+                        const hasAltFace = card.altImageUrl || (card.card_faces && card.card_faces.length > 1);
+                        if (!hasAltFace) return card;
+                        const currentIndex = card.currentFaceIndex ?? 0;
+                        return { ...card, currentFaceIndex: currentIndex === 0 ? 1 : 0 };
+                    })
+                };
+                break;
+            }
 
-                case 'toggleFaceDown': {
-                    const { cardId } = data;
-                    const newBattlefield = playerState.battlefield.map(card => {
-                        if (card._id === cardId) {
-                            return { ...card, isFaceDown: !card.isFaceDown };
-                        }
-                        return card;
-                    });
+            case 'tapCard': {
+                const { cardId } = data;
+                updated[playerId] = {
+                    ...playerState,
+                    battlefield: playerState.battlefield.map(card =>
+                        card._id === cardId ? { ...card, isTapped: !card.isTapped } : card
+                    )
+                };
+                break;
+            }
 
-                    updated[playerId] = {
-                        ...playerState,
-                        battlefield: newBattlefield
-                    };
-                    break;
-                }
+            case 'toggleFaceDown': {
+                const { cardId } = data;
+                updated[playerId] = {
+                    ...playerState,
+                    battlefield: playerState.battlefield.map(card =>
+                        card._id === cardId ? { ...card, isFaceDown: !card.isFaceDown } : card
+                    )
+                };
+                break;
+            }
 
-                case 'shakeCard': {
-                    const { cardId } = data;
-                    const newBattlefield = playerState.battlefield.map(card =>
-                        card._id === cardId 
-                            ? { ...card, isShaking: true }
-                            : card
-                    );
+            // shakeCard and shakeOpponentCard are visual-only effects — not persisted.
+            // They're handled separately via setTimeout in handleLocalAction.
+            case 'shakeCard':
+            case 'shakeOpponentCard':
+                break;
 
-                    updated[playerId] = {
-                        ...playerState,
-                        battlefield: newBattlefield
-                    };
-
-                    setTimeout(() => {
-                        setPlayerStates(prev => {
-                            const resetShake = { ...prev };
-                            resetShake[playerId] = {
-                                ...resetShake[playerId],
-                                battlefield: resetShake[playerId].battlefield.map(card =>
-                                    card._id === cardId 
-                                        ? { ...card, isShaking: false }
-                                        : card
-                                )
-                            };
-                            return resetShake;
-                        });
-                    }, 200);
-                    break;
-                }
-                case 'shakeOpponentCard': {
-                    const { cardId, targetPlayerId } = data;
-                    const targetState = updated[targetPlayerId];
-                    if (!targetState) break;
-
-                    const newBattlefield = targetState.battlefield.map(card =>
-                        card._id === cardId ? { ...card, isShaking: true } : card
-                    );
-                    updated[targetPlayerId] = { ...targetState, battlefield: newBattlefield };
-
-                    setTimeout(() => {
-                        setPlayerStates(prev => {
-                            const reset = { ...prev };
-                            if (!reset[targetPlayerId]) return prev;
-                            reset[targetPlayerId] = {
-                                ...reset[targetPlayerId],
-                                battlefield: reset[targetPlayerId].battlefield.map(card =>
-                                    card._id === cardId ? { ...card, isShaking: false } : card
-                                )
-                            };
-                            return reset;
-                        });
-                    }, 200);
-                    break;
-                }
-
-                case 'cloneOpponentCard': {
-                    const actingPlayerId = playerId;
-                    const actingState = updated[actingPlayerId];
-                    if (!actingState) break;
-
-                    const clonedCard = {
+            case 'cloneOpponentCard': {
+                const actingState = updated[playerId];
+                if (!actingState) break;
+                updated[playerId] = {
+                    ...actingState,
+                    battlefield: [...(actingState.battlefield || []), {
                         ...data.card,
                         _id: data.cloneId,
                         isClone: true,
                         position: data.position || { x: 20, y: 20 },
                         zIndex: data.zIndex || (actingState.battlefield?.length || 0) + 1
-                    };
-                    updated[actingPlayerId] = {
-                        ...actingState,
-                        battlefield: [...(actingState.battlefield || []), clonedCard]
-                    };
-                    break;
-                }
+                    }]
+                };
+                break;
+            }
 
-                case 'addCounter': {
-                    const { cardId } = data;
-                    const newBattlefield = playerState.battlefield.map(card => {
-                        if (card._id === cardId) {
-                            const currentCounters = card.counters || [];
-                            return { ...card, counters: [...currentCounters, 1] };
+            case 'addCounter': {
+                const { cardId } = data;
+                updated[playerId] = {
+                    ...playerState,
+                    battlefield: playerState.battlefield.map(card => {
+                        if (card._id !== cardId) return card;
+                        return { ...card, counters: [...(card.counters || []), 1] };
+                    })
+                };
+                break;
+            }
+
+            case 'removeCounter': {
+                const { cardId, counterIndex } = data;
+                updated[playerId] = {
+                    ...playerState,
+                    battlefield: playerState.battlefield.map(card => {
+                        if (card._id !== cardId || !card.counters) return card;
+                        const newCounters = card.counters.filter((_, idx) => idx !== counterIndex);
+                        if (newCounters.length === 0) {
+                            const { counters, ...rest } = card;
+                            return rest;
                         }
-                        return card;
-                    });
+                        return { ...card, counters: newCounters };
+                    })
+                };
+                break;
+            }
 
-                    updated[playerId] = {
-                        ...playerState,
-                        battlefield: newBattlefield
-                    };
-                    break;
-                }
+            case 'incrementCounter': {
+                const { cardId, counterIndex } = data;
+                updated[playerId] = {
+                    ...playerState,
+                    battlefield: playerState.battlefield.map(card => {
+                        if (card._id !== cardId || !card.counters) return card;
+                        const newCounters = [...card.counters];
+                        newCounters[counterIndex] = (newCounters[counterIndex] ?? 1) + (data.delta ?? 1);
+                        return { ...card, counters: newCounters };
+                    })
+                };
+                break;
+            }
 
-                case 'removeCounter': {
-                    const { cardId, counterIndex } = data;
-                    const newBattlefield = playerState.battlefield.map(card => {
-                        if (card._id === cardId && card.counters) {
-                            const newCounters = card.counters.filter((_, idx) => idx !== counterIndex);
-                            if (newCounters.length === 0) {
-                                const { counters, ...rest } = card;
-                                return rest;
-                            }
-                            return { ...card, counters: newCounters };
-                        }
-                        return card;
-                    });
-
-                    updated[playerId] = {
-                        ...playerState,
-                        battlefield: newBattlefield
-                    };
-                    break;
-                }
-
-                case 'incrementCounter': {
-                    const { cardId, counterIndex } = data;
-                    const newBattlefield = playerState.battlefield.map(card => {
-                        if (card._id === cardId && card.counters) {
-                            const newCounters = [...card.counters];
-                            newCounters[counterIndex] = (newCounters[counterIndex] ?? 1) + (data.delta ?? 1);
-                            return { ...card, counters: newCounters };
-                        }
-                        return card;
-                    });
-
-                    updated[playerId] = {
-                        ...playerState,
-                        battlefield: newBattlefield
-                    };
-                    break;
-                }
-
-                case 'cloneCard': {
-                    const { card, cloneId } = data;
-                    const clonedCard = {
+            case 'cloneCard': {
+                const { card, cloneId } = data;
+                updated[playerId] = {
+                    ...playerState,
+                    battlefield: [...(playerState.battlefield || []), {
                         ...card,
                         _id: cloneId,
                         isClone: true,
@@ -586,41 +486,109 @@ const GameRoomPage = () => {
                             y: (card.position?.y || 0) + 20
                         },
                         zIndex: data.zIndex || (playerState.battlefield?.length || 0) + 1
-                    };
-
-                    updated[playerId] = {
-                        ...playerState,
-                        battlefield: [...(playerState.battlefield || []), clonedCard]
-                    };
-                    break;
-                }
-
-                case 'shuffleLibrary':
-                    updated[playerId] = {
-                        ...playerState,
-                        library: data.cards || []
-                    };
-                    break;
-
-                case 'scoopDeck':
-                    updated[playerId] = {
-                        ...playerState,
-                        library: [],
-                        hand: [],
-                        battlefield: [],
-                        graveyard: [],
-                        exile: [],
-                        facedown: [],
-                        sideboard: []
-                    };
-                    break;
-                    
-                default : 
-                    console.log('unhandled action:', action);
+                    }]
+                };
+                break;
             }
 
-            return updated;
+            case 'shuffleLibrary':
+                updated[playerId] = { ...playerState, library: data.cards || [] };
+                break;
+
+            case 'scoopDeck':
+                updated[playerId] = {
+                    ...playerState,
+                    library: [], hand: [], battlefield: [],
+                    graveyard: [], exile: [], facedown: [], sideboard: []
+                };
+                break;
+
+            default:
+                console.log('unhandled action:', action);
+                return prev;
+        }
+
+        return updated;
+    };
+
+    const handleLocalAction = useCallback(({ username, action, data, timestamp, playerId }) => {
+        // rollDice is UI-only, no state change
+        if (action === 'rollDice') {
+            setDiceResult({ username, result: data.result, sides: data.sides });
+            setTimeout(() => setDiceResult(null), 3000);
+            return;
+        }
+
+        // Shake effects are visual-only — handle separately, don't persist
+        if (action === 'shakeCard') {
+            const { cardId } = data;
+            setPlayerStates(prev => {
+                const updated = { ...prev };
+                if (!updated[playerId]) return prev;
+                updated[playerId] = {
+                    ...updated[playerId],
+                    battlefield: updated[playerId].battlefield.map(card =>
+                        card._id === cardId ? { ...card, isShaking: true } : card
+                    )
+                };
+                playerStatesRef.current = updated;
+                return updated;
+            });
+            setTimeout(() => {
+                setPlayerStates(prev => {
+                    const reset = { ...prev };
+                    if (!reset[playerId]) return prev;
+                    reset[playerId] = {
+                        ...reset[playerId],
+                        battlefield: reset[playerId].battlefield.map(card =>
+                            card._id === cardId ? { ...card, isShaking: false } : card
+                        )
+                    };
+                    playerStatesRef.current = reset;
+                    return reset;
+                });
+            }, 200);
+            return;
+        }
+
+        if (action === 'shakeOpponentCard') {
+            const { cardId, targetPlayerId } = data;
+            setPlayerStates(prev => {
+                const updated = { ...prev };
+                if (!updated[targetPlayerId]) return prev;
+                updated[targetPlayerId] = {
+                    ...updated[targetPlayerId],
+                    battlefield: updated[targetPlayerId].battlefield.map(card =>
+                        card._id === cardId ? { ...card, isShaking: true } : card
+                    )
+                };
+                playerStatesRef.current = updated;
+                return updated;
+            });
+            setTimeout(() => {
+                setPlayerStates(prev => {
+                    const reset = { ...prev };
+                    if (!reset[targetPlayerId]) return prev;
+                    reset[targetPlayerId] = {
+                        ...reset[targetPlayerId],
+                        battlefield: reset[targetPlayerId].battlefield.map(card =>
+                            card._id === cardId ? { ...card, isShaking: false } : card
+                        )
+                    };
+                    playerStatesRef.current = reset;
+                    return reset;
+                });
+            }, 200);
+            return;
+        }
+
+        // All other actions: delegate to the pure function
+        setPlayerStates(prev => {
+            const next = computeNextPlayerStates(prev, { action, data, playerId }, game?.format, shuffleArray);
+            playerStatesRef.current = next;
+            return next;
         });
+
     }, [game?.format, shuffleArray]);
 
     const handleLocalActionRef = useRef(handleLocalAction);
@@ -628,7 +596,7 @@ const GameRoomPage = () => {
         handleLocalActionRef.current = handleLocalAction;
     }, [handleLocalAction]);
 
-    // -- socket handling -- 
+
     useEffect(() => {
         console.log('[GAME EFFECT] fired', { 
             hasSocket: !!socket, 
@@ -756,6 +724,7 @@ const GameRoomPage = () => {
     };
 
         const handleGameActionFromSocket = (payload) => {
+            if (payload.playerId === user._id) return; 
             const processStart = Date.now();
 
             handleLocalActionRef.current(payload);
@@ -944,6 +913,9 @@ const GameRoomPage = () => {
     }, [socket, game, resetActivityTimer]);
 
     const handleGameAction = useCallback((actionData) => {
+        const game = gameRef.current;
+        const user = userRef.current;
+
         if (!socket || !gameId) return;
         console.log('handleGameAction:', actionData);
 
@@ -957,27 +929,45 @@ const GameRoomPage = () => {
             timestamp: Date.now()
         };
 
-        // 1. Apply optimistically to local state immediately (no flicker for the acting player)
-        handleLocalAction(actionPayload);
 
-        // 2. Compute chat extra data against pre-action state
-        const myState = playerStates[user._id];
+
+        // ─── FIX: compute next state synchronously (no race conditions) ───
+        const prevStates = playerStatesRef.current;
+        const nextStates = computeNextPlayerStates(
+            prevStates,
+            actionPayload,
+            game?.format,
+            shuffleArray
+        );
+
+        // 1. Apply immediately (no flicker, no async issues)
+        setPlayerStates(nextStates);
+        playerStatesRef.current = nextStates;
+
+        // 2. Compute chat extras (based on PREVIOUS state like before)
+        const myState = prevStates[user._id];
         let extra = null;
+
         if (actionData.action === 'tapCard') {
             const card = myState?.battlefield?.find(c => c._id === actionData.data?.cardId);
             extra = { isTapped: card ? !card.isTapped : true };
+
         } else if (actionData.action === 'toggleFaceDown') {
             const card = myState?.battlefield?.find(c => c._id === actionData.data?.cardId);
             extra = { isFaceDown: card ? !card.isFaceDown : true };
+
         } else if (actionData.action === 'changeLifeTotal') {
             const current = myState?.lifeTotal ?? (game?.format === 'commander' ? 40 : 20);
             extra = { from: current, to: current + (actionData.data?.amount ?? 0) };
+
         } else if (actionData.action === 'changeCounter') {
             const { counterType, amount } = actionData.data || {};
             const current = myState?.[counterType] ?? 0;
             extra = { counterType, from: current, to: current + (amount ?? 0) };
+
         } else if (actionData.action === 'drawCard') {
             extra = { count: actionData.data?.cards?.length ?? 1 };
+
         } else if (actionData.action === 'mulligan') {
             extra = { count: actionData.data?.count };
         }
@@ -992,39 +982,36 @@ const GameRoomPage = () => {
             timestamp: Date.now()
         }]);
 
-        // 3. Tell other clients about the action (for their optimistic update)
+        // 3. Broadcast action (other clients optimistic update)
         socket.emit('game:action', {
             gameId: game._id,
             action: actionData.action,
             data: actionData.data || actionData
         });
 
-        // 4. Persist to DB — the server will broadcast game:stateSnapshot to the
-        //    whole room after the write succeeds, reconciling everyone's state.
-        setTimeout(() => {
-            setPlayerStates(current => {
-                const myState = current[user._id];
-                if (!myState || !isJoinedRef.current) return current;
-                
-                const stripped = stripPlayerStateForStorage(myState);
-                const saveTimestamp = Date.now();
-                
-                roundTripTimers.current['game:saveState'] = saveTimestamp;
-                socket.emit('game:saveState', {
-                    gameId,
-                    playerId: user._id,
-                    playerState: stripped,
-                    clientTimestamp: saveTimestamp
-                });
-                return current;
-            });
-        }, 0);
+        // 4. Persist using already-computed next state (NO setTimeout, NO stale writes)
+        const myNextState = nextStates[user._id];
+        if (myNextState && isJoinedRef.current) {
+            const stripped = stripPlayerStateForStorage(myNextState);
+            const saveTimestamp = Date.now();
 
+            roundTripTimers.current['game:saveState'] = saveTimestamp;
+
+            socket.emit('game:saveState', {
+                gameId,
+                playerId: user._id,
+                playerState: stripped,
+                clientTimestamp: saveTimestamp
+            });
+        }
+
+        // 5. Persist chat log
         setChatLog(current => {
             socket.emit('game:saveChatLog', { gameId, chatLog: current });
             return current;
         });
-    }, [socket, gameId, game, user, resetActivityTimer, handleLocalAction, stripPlayerStateForStorage]);
+
+    }, [socket, gameId,resetActivityTimer,shuffleArray,stripPlayerStateForStorage]);
 
     const handleRepositionCard = useCallback((cardId, newPosition, newZIndex) => {
         handleGameAction({
@@ -1084,6 +1071,8 @@ const GameRoomPage = () => {
             </div>
         );
     }
+
+    
 
     return (
         <>
@@ -1150,7 +1139,7 @@ const GameRoomPage = () => {
 
                         <PlayerArea 
                             game={game} 
-                            playerStates={playerStates}
+                            myPlayerState={playerStates[user._id]}
                             onGameAction={handleGameAction}
                         />
                     </CardActionsProvider>

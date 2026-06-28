@@ -1,15 +1,10 @@
+import React from 'react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useCardActions } from '../../contexts/cardActions';
 import { HoverMenu, HoverMenuButton } from './HoverMenu';
 
-const CardActionsMenu = ({ 
-    card, 
-    isOpen, 
-    position, 
-    onClose,
-    currentZone 
-}) => {
+const CardActionsMenu = React.memo(({card, isOpen, position, onClose,currentZone}) => {
     const { playCard, playCardFaceDown, moveCard, toggleAltFace, tapCard, toggleFaceDown, shakeCard, addCounter } = useCardActions();
     
     if (!isOpen || !card) return null;
@@ -112,7 +107,14 @@ const CardActionsMenu = ({
         </div>,
         document.body
     );
-};
+}, (prevProps, nextProps) => {
+    return prevProps.isOpen === nextProps.isOpen &&
+           prevProps.card?._id === nextProps.card?._id &&
+           prevProps.card?.isTapped === nextProps.card?.isTapped &&
+           prevProps.card?.isFaceDown === nextProps.card?.isFaceDown &&
+           prevProps.position.x === nextProps.position.x &&
+           prevProps.position.y === nextProps.position.y;
+});
 
 const MoveToSubmenu = ({ card, onMoveToZone, currentZone, onClose }) => {
     const [submenuOpen, setSubmenuOpen] = useState(false);

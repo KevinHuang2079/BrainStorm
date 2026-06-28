@@ -1,151 +1,107 @@
-import { createContext, useContext, useCallback } from 'react';
+import { createContext, useContext, useCallback, useMemo, useRef, useEffect } from 'react';
 
 const CardActionsContext = createContext();
 
 export const CardActionsProvider = ({ children, onGameAction, playerStates, userId }) => {
-    const drawCard = (count = 1, zone = 'hand') => {
-        const myState = playerStates[userId];
+
+    const playerStatesRef = useRef(playerStates);
+    useEffect(() => { playerStatesRef.current = playerStates; }, [playerStates]);
+
+    const userIdRef = useRef(userId);
+    useEffect(() => { userIdRef.current = userId; }, [userId]);
+
+    const drawCard = useCallback((count = 1, zone = 'hand') => {
+        const myState = playerStatesRef.current[userIdRef.current];
         if (!myState || !myState.library || myState.library.length === 0) {
             alert('No cards left in library!');
             return;
         }
-
         const actualCount = Math.min(count, myState.library.length);
         const drawnCards = myState.library.slice(0, actualCount);
+        onGameAction({ action: 'drawCard', data: { cards: drawnCards, zone } });
+    }, [onGameAction]);
 
-        onGameAction({
-            action: 'drawCard',
-            data: { cards: drawnCards, zone }
-        });
-    };
+    const playCard = useCallback((card, fromZone, toZone = 'battlefield') => {
+        onGameAction({ action: 'play', data: { card, fromZone, toZone } });
+    }, [onGameAction]);
 
-    const playCard = (card, fromZone, toZone = 'battlefield') => {
-        onGameAction({
-            action: 'play',
-            data: { card, fromZone, toZone }
-        });
-    };
+    const playCardFaceDown = useCallback((card, fromZone, toZone = 'battlefield') => {
+        onGameAction({ action: 'playFaceDown', data: { card, fromZone, toZone } });
+    }, [onGameAction]);
 
-    const playCardFaceDown = (card, fromZone, toZone = 'battlefield') => {
-        onGameAction({
-            action: 'playFaceDown',
-            data: { card, fromZone, toZone }
-        });
-    };
+    const moveCard = useCallback((card, fromZone, toZone) => {
+        onGameAction({ action: 'move', data: { card, fromZone, toZone } });
+    }, [onGameAction]);
 
-    const moveCard = (card, fromZone, toZone) => {
-        onGameAction({
-            action: 'move',
-            data: { card, fromZone, toZone }
-        });
-    };
+    const moveToLibraryTop = useCallback((card, fromZone) => {
+        onGameAction({ action: 'moveToLibraryTop', data: { card, fromZone } });
+    }, [onGameAction]);
 
-    const moveToLibraryTop = (card, fromZone) => {
-        onGameAction({
-            action: 'moveToLibraryTop',
-            data: { card, fromZone }
-        });
-    };
+    const moveToLibraryBottom = useCallback((card, fromZone) => {
+        onGameAction({ action: 'moveToLibraryBottom', data: { card, fromZone } });
+    }, [onGameAction]);
 
-    const moveToLibraryBottom = (card, fromZone) => {
-        onGameAction({
-            action: 'moveToLibraryBottom',
-            data: { card, fromZone }
-        });
-    };
+    const toggleAltFace = useCallback((cardId, zone) => {
+        onGameAction({ action: 'toggleAltFace', data: { cardId, zone } });
+    }, [onGameAction]);
 
-    const toggleAltFace = (cardId, zone) => {
-        onGameAction({
-            action: 'toggleAltFace',
-            data: { cardId, zone }
-        });
-    };
+    const tapCard = useCallback((cardId) => {
+        const card = playerStatesRef.current[userIdRef.current]?.battlefield?.find(c => c._id === cardId);
+        onGameAction({ action: 'tapCard', data: { cardId, extra: { isTapped: card ? !card.isTapped : true } } });
+    }, [onGameAction]);
 
-    const tapCard = (cardId) => {
-        const card = playerStates[userId]?.battlefield?.find(c => c._id === cardId);
-        onGameAction({
-            action: 'tapCard',
-            data: { cardId, extra: { isTapped: card ? !card.isTapped : true } }
-        });
-    };
+    const toggleFaceDown = useCallback((cardId) => {
+        const card = playerStatesRef.current[userIdRef.current]?.battlefield?.find(c => c._id === cardId);
+        onGameAction({ action: 'toggleFaceDown', data: { cardId, extra: { isFaceDown: card ? !card.isFaceDown : true } } });
+    }, [onGameAction]);
 
-    const toggleFaceDown = (cardId) => {
-        const card = playerStates[userId]?.battlefield?.find(c => c._id === cardId);
-        onGameAction({
-            action: 'toggleFaceDown',
-            data: { cardId, extra: { isFaceDown: card ? !card.isFaceDown : true } }
-        });
-    };
+    const shakeCard = useCallback((cardId) => {
+        onGameAction({ action: 'shakeCard', data: { cardId } });
+    }, [onGameAction]);
 
-    const shakeCard = (cardId) => {
-        onGameAction({
-            action: 'shakeCard',
-            data: { cardId }
-        });
-    };
+    const addCounter = useCallback((cardId) => {
+        onGameAction({ action: 'addCounter', data: { cardId } });
+    }, [onGameAction]);
 
-    const addCounter = (cardId) => {
-        onGameAction({
-            action: 'addCounter',
-            data: { cardId }
-        });
-    };
+    const removeCounter = useCallback((cardId, counterIndex) => {
+        onGameAction({ action: 'removeCounter', data: { cardId, counterIndex } });
+    }, [onGameAction]);
 
-    const removeCounter = (cardId, counterIndex) => {
-        onGameAction({
-            action: 'removeCounter',
-            data: { cardId, counterIndex }
-        });
-    };
-
-    const incrementCounter = (cardId, index, delta = 1) => {
+    const incrementCounter = useCallback((cardId, index, delta = 1) => {
         onGameAction({ action: 'incrementCounter', data: { cardId, counterIndex: index, delta } });
-    };
+    }, [onGameAction]);
 
-    const cloneCard = (card) => {
+    const cloneCard = useCallback((card) => {
         const cloneId = `${card._id}_clone_${Date.now()}_${Math.random()}`;
         onGameAction({
             action: 'cloneCard',
             data: {
                 card,
                 cloneId,
-                position: card.position ? {
-                    x: card.position.x + 20,
-                    y: card.position.y + 20
-                } : { x: 20, y: 20 }
+                position: card.position
+                    ? { x: card.position.x + 20, y: card.position.y + 20 }
+                    : { x: 20, y: 20 }
             }
         });
-    };
+    }, [onGameAction]);
 
-    const shuffleLibrary = (shuffledCards) => {
-        onGameAction({
-            action: 'shuffleLibrary',
-            data: { cards: shuffledCards }
-        });
-    };
+    const shuffleLibrary = useCallback((shuffledCards) => {
+        onGameAction({ action: 'shuffleLibrary', data: { cards: shuffledCards } });
+    }, [onGameAction]);
 
-    const loadDeck = (library, sideboard = [], startInPlay = []) => {
-        onGameAction({
-            action: 'loadDeck',
-            data: { library, sideboard, startInPlay }
-        });
-    };
+    const loadDeck = useCallback((library, sideboard = [], startInPlay = []) => {
+        onGameAction({ action: 'loadDeck', data: { library, sideboard, startInPlay } });
+    }, [onGameAction]);
 
-    const scoopDeck = () => {
-        onGameAction({
-            action: 'scoopDeck',
-            data: {}
-        });
-    };
+    const scoopDeck = useCallback(() => {
+        onGameAction({ action: 'scoopDeck', data: {} });
+    }, [onGameAction]);
 
-    const rollDice = (sides, result) => {
-        onGameAction({
-            action: 'rollDice',
-            data: { sides, result }
-        });
-    };
+    const rollDice = useCallback((sides, result) => {
+        onGameAction({ action: 'rollDice', data: { sides, result } });
+    }, [onGameAction]);
 
-    const insertCard = (card) => {
+    const insertCard = useCallback((card) => {
         const tokenCard = {
             ...card,
             _id: `${card._id}_token_${Date.now()}_${Math.random()}`,
@@ -154,36 +110,24 @@ export const CardActionsProvider = ({ children, onGameAction, playerStates, user
             position: { x: 0, y: 0 },
             zIndex: 1
         };
+        onGameAction({ action: 'insertCard', data: { card: tokenCard } });
+    }, [onGameAction]);
 
-        onGameAction({
-            action: 'insertCard',
-            data: { card: tokenCard }
-        });
-    };
+    const untapAll = useCallback(() => {
+        onGameAction({ action: 'untapAll', data: {} });
+    }, [onGameAction]);
 
-    const untapAll = () => {
-        onGameAction({
-            action: 'untapAll',
-            data: {}
-        });
-    };
-    const mulligan = (count) => {
-        onGameAction({
-            action: 'mulligan',
-            data: { count }
-        });
-    };
+    const mulligan = useCallback((count) => {
+        onGameAction({ action: 'mulligan', data: { count } });
+    }, [onGameAction]);
 
     const shakeOpponentCard = useCallback((cardId, targetPlayerId) => {
-        onGameAction({
-            action: 'shakeOpponentCard',
-            data: { cardId, targetPlayerId }
-        });
+        onGameAction({ action: 'shakeOpponentCard', data: { cardId, targetPlayerId } });
     }, [onGameAction]);
 
     const cloneOpponentCard = useCallback((card) => {
         const cloneId = `${card._id}_clone_${Date.now()}`;
-        const zIndex = (playerStates[userId]?.battlefield?.length || 0) + 1;
+        const zIndex = (playerStatesRef.current[userIdRef.current]?.battlefield?.length || 0) + 1;
         onGameAction({
             action: 'cloneOpponentCard',
             data: {
@@ -193,9 +137,9 @@ export const CardActionsProvider = ({ children, onGameAction, playerStates, user
                 zIndex
             }
         });
-    }, [onGameAction, playerStates, userId]);
+    }, [onGameAction]);
 
-    const value = {
+    const value = useMemo(() => ({
         drawCard,
         playCard,
         playCardFaceDown,
@@ -217,11 +161,18 @@ export const CardActionsProvider = ({ children, onGameAction, playerStates, user
         insertCard,
         untapAll,
         mulligan,
-        playerStates,
-        userId,
         shakeOpponentCard,
         cloneOpponentCard,
-    };
+        playerStates,
+        userId,
+    }), [
+        drawCard, playCard, playCardFaceDown, moveCard, moveToLibraryTop,
+        moveToLibraryBottom, toggleAltFace, tapCard, toggleFaceDown, shakeCard,
+        addCounter, removeCounter, incrementCounter, cloneCard, shuffleLibrary,
+        loadDeck, scoopDeck, rollDice, insertCard, untapAll, mulligan,
+        shakeOpponentCard, cloneOpponentCard,
+        playerStates, userId,
+    ]);
 
     return (
         <CardActionsContext.Provider value={value}>
