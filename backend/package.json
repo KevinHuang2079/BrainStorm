@@ -33,6 +33,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.2",
     "nodemailer": "^7.0.13",
+    "redis": "^6.0.1",
+    "redis-cli": "^2.1.2",
     "sib-api-v3-sdk": "^8.5.0",
     "socket.io": "^4.8.1"
   },

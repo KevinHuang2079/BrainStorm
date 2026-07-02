@@ -2,19 +2,59 @@
 const Game = require('../models/Game');
 const jwt = require('jsonwebtoken');
 const cardCache = require('../services/r2cardCache');
+const redis = require('../services/redisGameState');
 
 const User = require('../models/User');
-const gameActivityTimers = new Map();
-const INACTIVITY_WARNING_TIME = 1 * 60 * 1000; // 1 minute
-const INACTIVITY_CLOSE_TIME = 5 * 60 * 1000;   // 5 minutes
-// const INACTIVITY_WARNING_TIME = 23 * 60 * 60 * 1000; // 23 hours in ms
-// const INACTIVITY_CLOSE_TIME = 24 * 60 * 60 * 1000;  // 24 hours in ms
 
+// Inactivity timeouts are now driven by Redis key expiry + keyspace notifications.
+// The warning/close sequence is still managed in-process (setTimeout) but the
+// mutable ref object lives here so clearGameActivityTimer always sees the latest handle.
+const gameActivityTimers = new Map();
+const INACTIVITY_WARNING_MS = 1 * 60 * 1000;
+const INACTIVITY_CLOSE_MS   = 5 * 60 * 1000;
 const cookie = require('cookie');
+
+// ─── Mongo flush debounce ────────────────────────────────────────────────────
+// Mongo writes are deferred 30 s after the last save. They're also triggered
+// eagerly on turn end, disconnect, and game close (see those handlers).
+const mongoFlushTimers = new Map();
+const MONGO_FLUSH_DEBOUNCE_MS = 30_000;
 
 module.exports = (io) => {
 
     // ─── Helpers ────────────────────────────────────────────────────────────────
+    async function flushStateToMongo(gameId) {
+        const stripped = await redis.getStrippedGameState(gameId);
+        if (!stripped) return;
+
+        try {
+            await Game.findByIdAndUpdate(gameId, { $set: { savedState: stripped } });
+            console.log(`[MONGO FLUSH] flushed game ${gameId}`);
+        } catch (err) {
+            console.error('[MONGO FLUSH ERROR]', err);
+        }
+    }
+
+    function scheduleMongoFlush(gameId) {
+        if (mongoFlushTimers.has(gameId)) {
+            clearTimeout(mongoFlushTimers.get(gameId));
+        }
+
+        mongoFlushTimers.set(
+            gameId,
+            setTimeout(async () => {
+                mongoFlushTimers.delete(gameId);
+                await flushStateToMongo(gameId);
+            }, MONGO_FLUSH_DEBOUNCE_MS)
+        );
+    }
+
+    function cancelMongoFlush(gameId) {
+        if (mongoFlushTimers.has(gameId)) {
+            clearTimeout(mongoFlushTimers.get(gameId));
+            mongoFlushTimers.delete(gameId);
+        }
+    }
 
     /** Applies the standard 4-field populate chain to a Mongoose query or document. */
     function populateGame(query) {
@@ -156,24 +196,30 @@ module.exports = (io) => {
      * game room as a game:stateSnapshot event. This is the single authoritative
      * state push — replaces all peer-to-peer game:syncState / game:stateUpdate flow.
      */
-    async function broadcastStateSnapshot(gameId, savedState) {
-        if (!savedState || Object.keys(savedState).length === 0) return;
+    async function broadcastStateSnapshot(gameId, strippedState) {
+        if (!strippedState || Object.keys(strippedState).length === 0) return;
 
         const t = Date.now();
-        const hydratedState = {};
-        for (const [playerId, playerState] of Object.entries(savedState)) {
-            if (playerId === '_chatLog') {
-                hydratedState[playerId] = playerState;
-                continue;
-            }
-            hydratedState[playerId] = await hydratePlayerState(playerState);
-        }
-        console.log(`[PERF] broadcastStateSnapshot hydration: ${Date.now() - t}ms`);
 
-        io.to(`game:${gameId}`).emit('game:stateSnapshot', {
-            savedState: hydratedState,
-            timestamp: Date.now()
-        });
+        // Try the hydrated Redis cache first (avoids R2 round-trips on every action)
+        let hydratedState = await redis.getHydratedGameState(gameId);
+
+        if (!hydratedState) {
+            // Cache miss — hydrate from R2 and write back to Redis
+            hydratedState = {};
+            for (const [playerId, playerState] of Object.entries(strippedState)) {
+                if (playerId === '_chatLog') { hydratedState[playerId] = playerState; continue; }
+                const h = await hydratePlayerState(playerState);
+                hydratedState[playerId] = h;
+                await redis.saveHydratedPlayerState(gameId, playerId, h);
+            }
+        } else {
+            // Merge in the _chatLog scalar (not stored in the hydrated hash)
+            if (strippedState['_chatLog']) hydratedState['_chatLog'] = strippedState['_chatLog'];
+        }
+
+        console.log(`[PERF] broadcastStateSnapshot: ${Date.now() - t}ms`);
+        io.to(`game:${gameId}`).emit('game:stateSnapshot', { savedState: hydratedState, timestamp: Date.now() });
     }
 
     // ─── Inactivity timers ───────────────────────────────────────────────────────
@@ -212,15 +258,18 @@ module.exports = (io) => {
                     const game = await Game.findById(gameId);
                     if (game) {
                         io.to(`game:${gameId}`).emit('game:closedDueToInactivity');
+                        cancelMongoFlush(gameId);
+                        await flushStateToMongo(gameId);
                         await Game.findByIdAndDelete(gameId);
+                        await redis.deleteGame(gameId);
                         gameActivityTimers.delete(gameId);
                         await broadcastGamesList();
                     }
                 } catch (err) {
                     console.error('Error closing inactive game:', err);
                 }
-            }, INACTIVITY_CLOSE_TIME - INACTIVITY_WARNING_TIME);
-        }, INACTIVITY_WARNING_TIME);
+            }, INACTIVITY_CLOSE_MS - INACTIVITY_WARNING_MS);
+        }, INACTIVITY_WARNING_MS);
     }
 
     function clearGameActivityTimer(gameId) {
@@ -343,6 +392,8 @@ module.exports = (io) => {
                 console.log(`[PERF] game:join populate: ${Date.now() - t}ms`);
 
                 socket.join(`game:${gameId}`);
+                // Track membership in Redis for fast game:action auth checks
+                await redis.addPlayerToGame(gameId, socket.userId);
                 joinedGameRooms.add(`game:${gameId}`);
                 resetGameActivityTimer(gameId);
 
@@ -357,14 +408,40 @@ module.exports = (io) => {
                 console.log('[SERVER JOIN] joining userId:', socket.userId);
                 console.log('[SERVER JOIN] their entry:', gameObject.savedState?.[socket.userId] ? 'EXISTS' : 'MISSING');
 
-                if (gameObject.savedState) {
-                    t = Date.now();
+                // Prefer Redis (fast, already hydrated) — fall back to Mongo + R2 on cold start
+                t = Date.now();
+                let hydratedJoinState = await redis.getHydratedGameState(gameId);
+
+                if (hydratedJoinState) {
+                    console.log(`[PERF] game:join hydrated state from Redis: ${Date.now() - t}ms`);
+                    gameObject.savedState = hydratedJoinState;
+                } else if (gameObject.savedState) {
                     const hydratedSavedState = {};
+
                     for (const [playerId, playerState] of Object.entries(gameObject.savedState)) {
-                        hydratedSavedState[playerId] = await hydratePlayerState(playerState);
+                        if (playerId === '_chatLog') { 
+                            hydratedSavedState[playerId] = playerState; 
+                            continue; 
+                        }
+
+                        const h = await hydratePlayerState(playerState);
+                        hydratedSavedState[playerId] = h;
+
+                        // Seed Redis hydrated cache and stripped state from Mongo data
+                        await redis.saveHydratedPlayerState(gameId, playerId, h);
+                        await redis.saveStrippedPlayerState(
+                            gameId,
+                            playerId,
+                            playerState,
+                            playerState.lastUpdated 
+                                ? new Date(playerState.lastUpdated).getTime() 
+                                : Date.now()
+                        );
+                        await redis.addPlayerToGame(gameId, playerId);
                     }
+
                     gameObject.savedState = hydratedSavedState;
-                    console.log(`[PERF] game:join hydration: ${Date.now() - t}ms`);
+                    console.log(`[PERF] game:join hydrated state from Mongo+R2 (Redis miss): ${Date.now() - t}ms`);
                 }
 
                 socket.emit('game:joined', gameObject); // give this client his info 
@@ -392,9 +469,10 @@ module.exports = (io) => {
         socket.on('game:action', authenticated(socket, async ({ gameId, action, data }) => {
             const totalStart = Date.now();
             try {
-                let t = Date.now();
-                const game = await findGameForPlayer(gameId, socket.userId);
-                const dbDuration = Date.now() - t;
+                const isMember = await redis.isPlayerInGame(gameId, socket.userId);
+                if (!isMember) {
+                    return socket.emit('error', { message: 'You are not in this game' });
+                }
 
                 resetGameActivityTimer(gameId);
 
@@ -435,7 +513,7 @@ module.exports = (io) => {
                     });
                 }
 
-                console.log(`[PERF] game:action ${action}: DB=${dbDuration}ms, Hydrate=${hydrateDuration}ms, TOTAL=${Date.now() - totalStart}ms`);
+                console.log(`[PERF] game:action ${action}: Hydrate=${hydrateDuration}ms, TOTAL=${Date.now() - totalStart}ms`);
             } catch (err) {
                 console.log(gameId, action, data);
                 console.error('Game action error:', err);
@@ -510,6 +588,9 @@ module.exports = (io) => {
                 console.log(`[PERF] game:endTurn save: ${Date.now() - t}ms`);
 
                 resetGameActivityTimer(gameId);
+                // Eager Mongo flush on turn end (natural checkpoint)
+                cancelMongoFlush(gameId);
+                await flushStateToMongo(gameId);
 
                 io.to(`game:${gameId}`).emit('game:turnChanged', {
                     currentTurn: populated.currentTurn,
@@ -556,11 +637,21 @@ module.exports = (io) => {
 
                 if (game.players.length === 0) {
                     t = Date.now();
+                    cancelMongoFlush(gameId);
+                    await flushStateToMongo(gameId);
                     await Game.findByIdAndDelete(gameId);
+                    await redis.deleteGame(gameId);
                     console.log(`[PERF] game:leave delete: ${Date.now() - t}ms`);
                     clearGameActivityTimer(gameId);
                 } else {
                     t = Date.now();
+
+                    await redis.removePlayerFromGame(gameId, socket.userId);
+                    await redis.deletePlayerFromState(gameId, socket.userId);
+                    await redis.deleteHydratedPlayerState(gameId, socket.userId);
+                    cancelMongoFlush(gameId);
+                    await flushStateToMongo(gameId);
+                    scheduleMongoFlush(gameId); // restart debounce for remaining players
                     const populated = await saveAndPopulate(game);
                     console.log(`[PERF] game:leave save: ${Date.now() - t}ms`);
 
@@ -648,61 +739,65 @@ module.exports = (io) => {
                 }
                 const timestamp = clientTimestamp;
 
-                let t = Date.now();
-                const game = await findGameForPlayer(gameId, socket.userId);
-                const dbDuration = Date.now() - t;
+                // Auth: Redis membership check (Mongo fallback if Redis cold)
+                const isMember = await redis.isPlayerInGame(gameId, socket.userId);
 
-                if (!game.savedState) game.savedState = {};
+                if (!isMember) {
+                    // Slow-path: confirm via Mongo in case Redis was just cold-started
+                    const game = await findGameForPlayer(gameId, socket.userId); // throws if not found
+
+                    // Seed Redis so next save is fast
+                    await redis.addPlayerToGame(gameId, socket.userId);
+                }
+
+                let t = Date.now();
 
                 t = Date.now();
+                // ── Write to Redis immediately ──────────────────────────────────
+                const strippedStateMap = {};
+
                 if (gameState) {
                     for (const [pId, state] of Object.entries(gameState)) {
-                        const existing = game.savedState[pId];
-                        const existingTs = existing?.lastUpdated 
-                            ? new Date(existing.lastUpdated).getTime() 
-                            : 0;
+                        const existingRaw = await redis.getStrippedGameState(gameId);
+                        const existingTs = existingRaw?.[pId]?.lastUpdated
+                            ? new Date(existingRaw[pId].lastUpdated).getTime() : 0;
 
                         if (timestamp >= existingTs) {
-                            game.savedState[pId] = {
-                                ...stripPlayerStateForStorage(state),
-                                lastUpdated: new Date(timestamp)
-                            };
+                            const stripped = stripPlayerStateForStorage(state);
+                            await redis.saveStrippedPlayerState(gameId, pId, stripped, timestamp);
+                            await redis.deleteHydratedPlayerState(gameId, pId); // invalidate stale hydrated entry
+                            strippedStateMap[pId] = stripped;
                         }
                     }
                 } else if (playerId && playerState) {
-                    if (playerId !== socket.userId) {
+                    if (playerId !== socket.userId)
                         return socket.emit('game:stateSaved', { success: false, error: 'Can only save your own state' });
-                    }
-                    
-                    const existing = game.savedState[playerId];
-                    const existingTs = existing?.lastUpdated 
-                        ? new Date(existing.lastUpdated).getTime() 
-                        : 0;
-                    
+
+                    const existingRaw = await redis.getStrippedGameState(gameId);
+                    const existingTs = existingRaw?.[playerId]?.lastUpdated
+                        ? new Date(existingRaw[playerId].lastUpdated).getTime() : 0;
+
                     if (timestamp >= existingTs) {
-                        game.savedState[playerId] = {
-                            ...stripPlayerStateForStorage(playerState),
-                            lastUpdated: new Date(timestamp)
-                        };
+                        const stripped = stripPlayerStateForStorage(playerState);
+                        await redis.saveStrippedPlayerState(gameId, playerId, stripped, timestamp);
+                        await redis.deleteHydratedPlayerState(gameId, playerId);
+                        strippedStateMap[playerId] = stripped;
                     }
                 }
-                const stripDuration = Date.now() - t;
 
-                game.markModified('savedState');
-                t = Date.now();
-                await game.save();
-                const saveDuration = Date.now() - t;
+                const stripDuration = Date.now() - t;
 
                 if (typeof ack === 'function') ack();
                 socket.emit('game:stateSaved', { success: true, timestamp: new Date(timestamp) });
 
-                // ── Broadcast DB state to all players in the room ──────────────
-                // This is the key change: after every successful save, push the
-                // now-authoritative DB state to everyone so no client is ever
-                // operating on stale peer data.
-                await broadcastStateSnapshot(gameId, game.savedState);
+                // Broadcast using freshest Redis state (all players, not just the one that just saved)
+                const fullStripped = await redis.getStrippedGameState(gameId);
+                await broadcastStateSnapshot(gameId, fullStripped ?? strippedStateMap);
 
-                console.log(`[PERF] game:saveState: DB=${dbDuration}ms, Strip=${stripDuration}ms, Save=${saveDuration}ms, TOTAL=${Date.now() - totalStart}ms`);
+                // Debounced Mongo flush — actual DB write happens 30 s after last action
+                scheduleMongoFlush(gameId);
+
+                console.log(`[PERF] game:saveState: Strip=${stripDuration}ms, TOTAL=${Date.now() - totalStart}ms (Mongo deferred)`);
             } catch (err) {
                 console.error('[SAVE STATE ERROR]', { gameId, userId: socket.userId, message: err.message, stack: err.stack });
                 socket.emit('game:stateSaved', { success: false, error: err.message });
@@ -714,13 +809,9 @@ module.exports = (io) => {
         socket.on('game:saveChatLog', async ({ gameId, chatLog }) => {
             try {
                 if (!socket.userId) return;
-                await findGameForPlayer(gameId, socket.userId);
-                const game = await Game.findById(gameId);
-                if (!game) return;
-                if (!game.savedState) game.savedState = {};
-                game.savedState['_chatLog'] = chatLog;
-                game.markModified('savedState');
-                await game.save();
+                const isMember = await redis.isPlayerInGame(gameId, socket.userId);
+                if (!isMember) return;
+                await redis.saveChatLog(gameId, chatLog);
                 socket.emit('game:chatLogSaved', { success: true });
                 // No state snapshot needed for chat-only saves — chat is not
                 // part of the player state broadcasted to opponents.
@@ -751,7 +842,12 @@ module.exports = (io) => {
                 let t = Date.now();
                 for (const room of joinedGameRooms) {
                     const gameId = room.replace('game:', '');
+                    
+                    // Flush Redis → Mongo eagerly on disconnect
+                    cancelMongoFlush(gameId);
+                    await flushStateToMongo(gameId);
 
+                    await redis.removePlayerFromGame(gameId, socket.userId);
                     // Atomically remove from connectedPlayers — never touches savedState
                     await Game.findByIdAndUpdate(gameId, {
                         $pull: { connectedPlayers: socket.userId }
@@ -811,6 +907,8 @@ module.exports = (io) => {
                 if (timers.closeTimer) clearTimeout(timers.closeTimer);
             }
             gameActivityTimers.clear();
+            for (const t of mongoFlushTimers.values()) clearTimeout(t);
+            mongoFlushTimers.clear();
         };
     }
 };

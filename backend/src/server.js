@@ -6,6 +6,7 @@ const corsMiddleware = require('./middleware/cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
+const { initRedis } = require('./services/redisGameState');
 
 const authRoutes = require('./routes/auth');
 const cardRoutes = require('./routes/card');
@@ -18,10 +19,10 @@ const PORT = process.env.PORT || 5002;
 connectDB();
 
 // middleware
-app.use(corsMiddleware);   // first (handles preflight + credentials)
-app.use(helmet());         // security headers
-app.use(express.json());   // body parser
-app.use(cookieParser());   // parse cookies
+app.use(corsMiddleware);
+app.use(helmet());
+app.use(express.json());
+app.use(cookieParser());
 
 // routes
 app.use('/api/auth', authRoutes);
@@ -50,11 +51,19 @@ const io = new Server(httpServer, {
 
 console.log('Socket.IO CORS origin:', corsOrigin);
 
-
 require('./sockets/gameSocket')(io);
 
-httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server and socket running on port ${PORT}`);
-  console.log('Socket.IO CORS origin:', corsOrigin);
-  console.log('NODE_ENV:', process.env.NODE_ENV); 
+async function start() {
+  await initRedis();
+
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server and socket running on port ${PORT}`);
+    console.log('Socket.IO CORS origin:', corsOrigin);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+  });
+}
+
+start().catch(err => {
+  console.error('[STARTUP] Failed to start server:', err);
+  process.exit(1);
 });
