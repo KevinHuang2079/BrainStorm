@@ -4,6 +4,15 @@ const client = createClient({ url: process.env.REDIS_URL });
 
 client.on('error', err => console.error('[REDIS]', err));
 
+function createDuplicateClient() {
+    // .duplicate() reuses the same connection options (url, TLS, etc.)
+    // but gives you an independent connection — required because a client
+    // in subscriber mode can't run other commands.
+    const dup = client.duplicate();
+    dup.on('error', err => console.error('[REDIS DUP]', err));
+    return dup;
+}
+
 async function initRedis() {
     if (!client.isOpen) {
         await client.connect();
@@ -115,6 +124,7 @@ async function deleteGame(gameId) {
 module.exports = {
     client,
     initRedis,
+    createDuplicateClient,
 
     saveStrippedPlayerState,
     getStrippedGameState,

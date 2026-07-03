@@ -1,5 +1,3 @@
-// r2cardCache.js - add Scryfall fallback + retry logic
-
 const scryfallService = require('../services/scryfallService');
 const { fetchCardFromR2, batchFetchCardsFromR2, uploadCardToR2 } = require('./r2client');
 

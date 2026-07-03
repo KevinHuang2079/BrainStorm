@@ -6,7 +6,8 @@ const corsMiddleware = require('./middleware/cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
-const { initRedis } = require('./services/redisGameState');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { initRedis, createDuplicateClient } = require('./services/redisGameState');
 
 const authRoutes = require('./routes/auth');
 const cardRoutes = require('./routes/card');
@@ -51,15 +52,28 @@ const io = new Server(httpServer, {
 
 console.log('Socket.IO CORS origin:', corsOrigin);
 
-require('./sockets/gameSocket')(io);
 
 async function start() {
   await initRedis();
+
+  const pubClient = createDuplicateClient();
+  const subClient = createDuplicateClient();
+  await Promise.all([pubClient.connect(), subClient.connect()]);
+  io.adapter(createAdapter(pubClient, subClient));
+  console.log('[REDIS ADAPTER] attached — cross-instance broadcasts enabled');
+
+  require('./sockets/gameSocket')(io);
 
   httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Server and socket running on port ${PORT}`);
     console.log('Socket.IO CORS origin:', corsOrigin);
     console.log('NODE_ENV:', process.env.NODE_ENV);
+  });
+
+  process.on('SIGTERM', async () => {
+    await pubClient.quit();
+    await subClient.quit();
+    process.exit(0);
   });
 }
 

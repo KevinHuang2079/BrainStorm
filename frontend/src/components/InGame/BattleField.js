@@ -227,7 +227,12 @@ const DraggableCard = React.memo(({ card, position, onCardClick, containerDimens
 }, (prev, next) => {
     return prev.card === next.card &&
            prev.position === next.position &&
-           prev.zIndex === next.zIndex;
+           prev.zIndex === next.zIndex &&
+           prev.containerDimensions.width === next.containerDimensions.width &&
+           prev.containerDimensions.height === next.containerDimensions.height &&
+           prev.cardScale === next.cardScale &&
+           prev.deckBackImage === next.deckBackImage &&
+           prev.onCardClick === next.onCardClick;
 });
 
 const StaticCard = ({ card, position, containerDimensions, cardScale, zIndex, deckBackImage, onCardClick }) => {
