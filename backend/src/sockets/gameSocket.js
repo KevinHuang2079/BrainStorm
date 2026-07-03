@@ -248,8 +248,8 @@ module.exports = (io) => {
         timers.warningTimer = setTimeout(() => {
             console.log(`[INACTIVITY] Warning fired for game ${gameId}`);
             io.to(`game:${gameId}`).emit('game:inactivityWarning', {
-                timeRemaining: INACTIVITY_CLOSE_TIME - INACTIVITY_WARNING_TIME,
-                closesAt: Date.now() + (INACTIVITY_CLOSE_TIME - INACTIVITY_WARNING_TIME) 
+                timeRemaining: INACTIVITY_CLOSE_MS - INACTIVITY_WARNING_MS,
+                closesAt: Date.now() + (INACTIVITY_CLOSE_MS - INACTIVITY_WARNING_MS)
             });
 
             timers.closeTimer = setTimeout(async () => {
