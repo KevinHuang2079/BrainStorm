@@ -1,0 +1,43 @@
+# .dockerignore filters what gets sent to the Docker daemon as build
+# context — this applies even though the Dockerfile uses selective
+# COPY (COPY src ./src), not COPY . . . Without this file, the entire
+# backend dir (including node_modules if it exists locally) still gets
+# tarred up and sent to the daemon before the build even starts.
+
+# Never ship your local node_modules — npm ci in the build stage
+# installs a clean, platform-correct copy inside the image.
+node_modules
+npm-debug.log*
+
+# Secrets. Real values must never enter the image layers — anyone with
+# `docker history` or access to the image can read them back out even
+# from a later-deleted layer. That includes REDIS_URL now that it's
+# Upstash — the URL itself embeds the auth token (rediss://default:<token>@...),
+# so treat it exactly like MONGO_URI or JWT_SECRET, not as a plain
+# connection string. Runtime env vars belong in an env file on each
+# EC2 instance / `docker run --env-file`, not COPY'd in.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+
+# Test tooling — jest, supertest, mongodb-memory-server are devDeps and
+# already excluded by `npm ci --omit=dev`, but keep the actual test/
+# files and configs out of the build context too.
+test
+jest.config*
+coverage
+
+*.md
+
+# No reason for the Dockerfile itself, or Render's config, to ride
+# along inside the image it produces.
+Dockerfile
+.dockerignore
+render.yaml
+
+.DS_Store
+.vscode
+.idea

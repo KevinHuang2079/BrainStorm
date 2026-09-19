@@ -7,6 +7,10 @@ node_modules/
 .env.*
 !.env.example
 
+# Private keys
+*.pem
+*.key
+
 # Logs
 logs/
 *.log
@@ -47,3 +51,4 @@ coverage/
 *.old
 *.orig
 *.txt
+*.py

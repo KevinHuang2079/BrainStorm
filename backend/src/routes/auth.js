@@ -11,6 +11,7 @@ const { sendPasswordRecovery } = require('../services/emailService');
 
 const isProd = process.env.NODE_ENV === 'production';
 
+
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10,
@@ -33,6 +34,10 @@ const cookieOptions = {
     sameSite: isProd ? 'none' : 'lax',
     maxAge: 1000 * 60 * 60 * 24 * 7
 };
+
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('isProd:', isProd);
+console.log('cookieOptions:', cookieOptions);
 
 router.post('/register', registerLimiter, async (req, res) => {
     try {

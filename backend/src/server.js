@@ -17,6 +17,7 @@ const gameRoutes = require('./routes/game');
 const app = express();
 const PORT = process.env.PORT || 5002;
 
+app.set('trust proxy', 1); //for nginx instance
 connectDB();
 
 // middleware
@@ -47,7 +48,8 @@ const io = new Server(httpServer, {
     origin: corsOrigin,
     credentials: true,
     methods: ['GET', 'POST']
-  }
+  },
+  transports: ['websocket']//a different node instance might answer in polling stage of socket.io
 });
 
 console.log('Socket.IO CORS origin:', corsOrigin);

@@ -9,7 +9,7 @@ const User = require('../models/User');
 // Inactivity timeouts are now driven by Redis key expiry + keyspace notifications.
 // The warning/close sequence is still managed in-process (setTimeout) but the
 // mutable ref object lives here so clearGameActivityTimer always sees the latest handle.
-const gameActivityTimers = new Map();
+// const gameActivityTimers = new Map();
 const INACTIVITY_WARNING_MS = 1 * 60 * 1000;
 const INACTIVITY_CLOSE_MS   = 5 * 60 * 1000;
 const cookie = require('cookie');
@@ -17,43 +17,117 @@ const cookie = require('cookie');
 // ─── Mongo flush debounce ────────────────────────────────────────────────────
 // Mongo writes are deferred 30 s after the last save. They're also triggered
 // eagerly on turn end, disconnect, and game close (see those handlers).
-const mongoFlushTimers = new Map();
-const MONGO_FLUSH_DEBOUNCE_MS = 30_000;
+// const mongoFlushTimers = new Map();
+// const MONGO_FLUSH_DEBOUNCE_MS = 30_000;
+const MONGO_FLUSH_STALE_MS = 30_000;      // same "30s" window, now meaning max staleness
+const MONGO_FLUSH_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+let mongoFlushSweeperHandle;
+
+
+// ─── Redis-driven inactivity (replaces gameActivityTimers Map) ─────────────
+// One dedicated subscriber connection per instance. Redis fans out expiry
+// events to every subscribed instance — the lock in redisGameState ensures
+// only one instance actually acts on any given expiry
+let inactivitySubscriber;
 
 module.exports = (io) => {
 
     // ─── Helpers ────────────────────────────────────────────────────────────────
-    async function flushStateToMongo(gameId) {
+    async function flushStateToMongo(gameId, triggeredBy = 'unknown') {
         const stripped = await redis.getStrippedGameState(gameId);
-        if (!stripped) return;
+        if (!stripped) {
+            console.log(`[MONGO FLUSH] event=${triggeredBy} game=${gameId} SKIPPED (no redis state)`);
+            return;
+        }
 
         try {
             await Game.findByIdAndUpdate(gameId, { $set: { savedState: stripped } });
-            console.log(`[MONGO FLUSH] flushed game ${gameId}`);
+            console.log(`[MONGO FLUSH] event=${triggeredBy} game=${gameId} flushed players=[${Object.keys(stripped).join(',')}]`);
         } catch (err) {
-            console.error('[MONGO FLUSH ERROR]', err);
+            console.error(`[MONGO FLUSH ERROR] event=${triggeredBy} game=${gameId}`, err);
         }
     }
 
-    function scheduleMongoFlush(gameId) {
-        if (mongoFlushTimers.has(gameId)) {
-            clearTimeout(mongoFlushTimers.get(gameId));
-        }
+    function startMongoFlushSweeper() {
+        mongoFlushSweeperHandle = setInterval(async () => {
+            try {
+                const staleGameIds = await redis.getStaleDirtyGames(MONGO_FLUSH_STALE_MS);
+                for (const gameId of staleGameIds) {
+                    // Reuses the existing generic lock helper — only one instance
+                    // actually performs the flush for a given game per cycle.
+                    const won = await redis.acquireLock(gameId, 'mongoFlush', 15);
+                    if (!won) continue;
 
-        mongoFlushTimers.set(
-            gameId,
-            setTimeout(async () => {
-                mongoFlushTimers.delete(gameId);
-                await flushStateToMongo(gameId);
-            }, MONGO_FLUSH_DEBOUNCE_MS)
-        );
+                    try {
+                        await redis.clearGameDirty(gameId);
+                        await flushStateToMongo(gameId);
+                    } catch (err) {
+                        console.error('[MONGO FLUSH SWEEP ERROR]', gameId, err);
+                    }
+                }
+            } catch (err) {
+                console.error('[MONGO FLUSH SWEEP ERROR]', err);
+            }
+        }, MONGO_FLUSH_SWEEP_INTERVAL_MS);
     }
 
-    function cancelMongoFlush(gameId) {
-        if (mongoFlushTimers.has(gameId)) {
-            clearTimeout(mongoFlushTimers.get(gameId));
-            mongoFlushTimers.delete(gameId);
-        }
+    async function initInactivityWatcher() {
+    inactivitySubscriber = redis.createDuplicateClient();
+    await inactivitySubscriber.connect();
+
+    // NOTE: many managed Redis providers (Upstash, some Render/Redis Cloud tiers)
+    // block CONFIG SET. If this throws, set `notify-keyspace-events Ex` via the
+    // provider's dashboard/config file instead — this call is a convenience
+    // for self-hosted/dev Redis.
+    try {
+        await redis.client.configSet('notify-keyspace-events', 'Ex');
+    } catch (err) {
+        console.warn('[REDIS] could not set notify-keyspace-events, set it manually on the server:', err.message);
+    }
+
+    await inactivitySubscriber.pSubscribe('__keyevent@*__:expired', async (expiredKey) => {
+        const match = expiredKey.match(/^game:([^:]+):activity(Warn|Close)$/);
+            if (!match) return;
+            const [, gameId, stage] = match;
+
+            if (stage === 'Warn') {
+                const won = await redis.acquireLock(gameId, 'warn');
+                if (!won) return; // another instance already handling this
+
+                io.to(`game:${gameId}`).emit('game:inactivityWarning', {
+                    timeRemaining: INACTIVITY_CLOSE_MS - INACTIVITY_WARNING_MS,
+                    closesAt: Date.now() + (INACTIVITY_CLOSE_MS - INACTIVITY_WARNING_MS)
+                });
+
+                await redis.armCloseTimer(gameId);
+            } else {
+                const won = await redis.acquireLock(gameId, 'close');
+                if (!won) return;
+
+                try {
+                    const game = await Game.findById(gameId);
+                    if (game) {
+                        io.to(`game:${gameId}`).emit('game:closedDueToInactivity');
+                        cancelMongoFlush(gameId);
+                        await flushStateToMongo(gameId);
+                        await Game.findByIdAndDelete(gameId);
+                        await redis.deleteGame(gameId);
+                        await redis.clearActivityKeys(gameId);
+                        await broadcastGamesList();
+                    }
+                } catch (err) {
+                    console.error('[INACTIVITY] error closing inactive game:', err);
+                }
+            }
+        });
+    }
+
+    async function scheduleMongoFlush(gameId) {
+        await redis.markGameDirty(gameId);
+    }
+
+    async function cancelMongoFlush(gameId) {
+        await redis.clearGameDirty(gameId);
     }
 
     /** Applies the standard 4-field populate chain to a Mongoose query or document. */
@@ -223,63 +297,21 @@ module.exports = (io) => {
     }
 
     // ─── Inactivity timers ───────────────────────────────────────────────────────
-
-    // BUG FIX #7: Use a mutable ref object stored once in the map so that
-    // clearGameActivityTimer always sees the latest closeTimer value. The old
-    // code stored { warningTimer, closeTimer: null } first, then called
-    // gameActivityTimers.set() again inside the warning callback — but if
-    // clearGameActivityTimer ran between those two sets it read the stale null
-    // and could never cancel the close timer.
-    function resetGameActivityTimer(gameId) {
-        if (gameActivityTimers.has(gameId)) {
-            const timers = gameActivityTimers.get(gameId);
-            clearTimeout(timers.warningTimer);
-            if (timers.closeTimer) clearTimeout(timers.closeTimer);
-        }
-
+    async function resetGameActivityTimer(gameId) {
         Game.findByIdAndUpdate(gameId, { lastActivityAt: new Date() }).catch(console.error);
-
-        // Single mutable ref — set once, mutated in place so clearTimeout always
-        // sees the correct handle regardless of when it's called.
-        const timers = { warningTimer: null, closeTimer: null };
-        gameActivityTimers.set(gameId, timers);
+        await redis.resetActivity(gameId);
         io.to(`game:${gameId}`).emit('game:activityReset');
-
-        timers.warningTimer = setTimeout(() => {
-            console.log(`[INACTIVITY] Warning fired for game ${gameId}`);
-            io.to(`game:${gameId}`).emit('game:inactivityWarning', {
-                timeRemaining: INACTIVITY_CLOSE_MS - INACTIVITY_WARNING_MS,
-                closesAt: Date.now() + (INACTIVITY_CLOSE_MS - INACTIVITY_WARNING_MS)
-            });
-
-            timers.closeTimer = setTimeout(async () => {
-                console.log(`[INACTIVITY] Close fired for game ${gameId}`);
-                try {
-                    const game = await Game.findById(gameId);
-                    if (game) {
-                        io.to(`game:${gameId}`).emit('game:closedDueToInactivity');
-                        cancelMongoFlush(gameId);
-                        await flushStateToMongo(gameId);
-                        await Game.findByIdAndDelete(gameId);
-                        await redis.deleteGame(gameId);
-                        gameActivityTimers.delete(gameId);
-                        await broadcastGamesList();
-                    }
-                } catch (err) {
-                    console.error('Error closing inactive game:', err);
-                }
-            }, INACTIVITY_CLOSE_MS - INACTIVITY_WARNING_MS);
-        }, INACTIVITY_WARNING_MS);
     }
 
-    function clearGameActivityTimer(gameId) {
-        if (gameActivityTimers.has(gameId)) {
-            const timers = gameActivityTimers.get(gameId);
-            clearTimeout(timers.warningTimer);
-            if (timers.closeTimer) clearTimeout(timers.closeTimer);
-            gameActivityTimers.delete(gameId);
-        }
+    async function clearGameActivityTimer(gameId) {
+        await redis.clearActivityKeys(gameId);
     }
+
+    initInactivityWatcher().catch(err => {
+        console.error('[REDIS] failed to start inactivity watcher:', err);
+    });
+
+    startMongoFlushSweeper();
 
     // ─── middleware ─────────────────────────────────────────────────────────
     
@@ -636,13 +668,14 @@ module.exports = (io) => {
                     game.host = game.players[0];
 
                 if (game.players.length === 0) {
-                    t = Date.now();
-                    cancelMongoFlush(gameId);
-                    await flushStateToMongo(gameId);
-                    await Game.findByIdAndDelete(gameId);
-                    await redis.deleteGame(gameId);
-                    console.log(`[PERF] game:leave delete: ${Date.now() - t}ms`);
-                    clearGameActivityTimer(gameId);
+                    const won = await redis.acquireLock(gameId, 'delete', 10);
+                    if (won) {
+                        cancelMongoFlush(gameId);
+                        await flushStateToMongo(gameId);
+                        await Game.findByIdAndDelete(gameId);
+                        await redis.deleteGame(gameId);
+                        clearGameActivityTimer(gameId);
+                    }
                 } else {
                     t = Date.now();
 
@@ -897,18 +930,9 @@ module.exports = (io) => {
         }
     }
 
-    // BUG FIX #9: Expose a timer flush for test cleanup so Jest doesn't warn
-    // about open handles. The 23-hour setTimeout registered by resetGameActivityTimer
-    // keeps the process alive after each test suite. Only wired in test mode.
     if (process.env.NODE_ENV === 'test') {
         module.exports._clearAllTimers = () => {
-            for (const timers of gameActivityTimers.values()) {
-                clearTimeout(timers.warningTimer);
-                if (timers.closeTimer) clearTimeout(timers.closeTimer);
-            }
-            gameActivityTimers.clear();
-            for (const t of mongoFlushTimers.values()) clearTimeout(t);
-            mongoFlushTimers.clear();
+            clearInterval(mongoFlushSweeperHandle);
         };
     }
 };
